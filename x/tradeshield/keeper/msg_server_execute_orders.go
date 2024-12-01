@@ -14,6 +14,7 @@ import (
 	/* *************************************************************************** */
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	ammtypes "github.com/elys-network/elys/x/amm/types"
 	"github.com/elys-network/elys/x/tradeshield/types"
 )
 
@@ -37,17 +38,18 @@ func (k msgServer) ExecuteOrders(goCtx context.Context, msg *types.MsgExecuteOrd
 		}
 
 		var err error
+		var res *ammtypes.MsgSwapByDenomResponse
 
 		// dispatch based on the order type
 		switch spotOrder.OrderType {
 		case types.SpotOrderType_STOPLOSS:
-			err = k.ExecuteStopLossOrder(ctx, spotOrder)
+			res, err = k.ExecuteStopLossOrder(ctx, spotOrder)
 		case types.SpotOrderType_LIMITSELL:
-			err = k.ExecuteLimitSellOrder(ctx, spotOrder)
+			res, err = k.ExecuteLimitSellOrder(ctx, spotOrder)
 		case types.SpotOrderType_LIMITBUY:
-			err = k.ExecuteLimitBuyOrder(ctx, spotOrder)
+			res, err = k.ExecuteLimitBuyOrder(ctx, spotOrder)
 		case types.SpotOrderType_MARKETBUY:
-			err = k.ExecuteMarketBuyOrder(ctx, spotOrder)
+			res, err = k.ExecuteMarketBuyOrder(ctx, spotOrder)
 		}
 
 		if err != nil {
@@ -62,6 +64,7 @@ func (k msgServer) ExecuteOrders(goCtx context.Context, msg *types.MsgExecuteOrd
 			/* End of kwak-indexer node implementation*/
 			/* *************************************************************************** */
 		} else {
+			ctx.EventManager().EmitEvent(types.NewExecuteSpotOrderEvt(spotOrder, res))
 			/* *************************************************************************** */
 			/* Start of kwak-indexer node implementation*/
 			spotExecutionLogs = append(spotExecutionLogs, indexerTradeshieldTypes.OrderExecutionLog{
