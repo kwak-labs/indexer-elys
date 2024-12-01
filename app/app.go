@@ -10,6 +10,8 @@ import (
 	/* *************************************************************************** */
 	/* Start of kwak-indexer node imports*/
 
+	"github.com/elys-network/elys/indexer"
+
 	/* End of kwak-indexer node imports*/
 	/* *************************************************************************** */
 
@@ -21,7 +23,6 @@ import (
 	authcodec "github.com/cosmos/cosmos-sdk/x/auth/codec"
 	"github.com/cosmos/gogoproto/proto"
 	"github.com/elys-network/elys/app/keepers"
-	"github.com/elys-network/elys/indexer"
 	"github.com/spf13/cast"
 
 	abci "github.com/cometbft/cometbft/abci/types"
