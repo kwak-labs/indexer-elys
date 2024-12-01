@@ -7,9 +7,10 @@ import (
 )
 
 type MsgUpdateStopLoss struct {
-	Creator string `json:"creator"`
-	ID      uint64 `json:"id"`
-	Price   string `json:"price"`
+	Creator  string `json:"creator"`
+	ID       uint64 `json:"id"`
+	Price    string `json:"price"`
+	StopLoss string `json:"stop_loss"`
 }
 
 func (m MsgUpdateStopLoss) Process(database types.DatabaseManager, transaction types.BaseTransaction) (types.Response, error) {

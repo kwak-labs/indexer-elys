@@ -229,7 +229,6 @@ func (k Keeper) ExecuteStopLossOrder(ctx sdk.Context, order types.SpotOrder) (*a
 
 	/* *************************************************************************** */
 	/* Start of kwak-indexer node implementation*/
-	// ! Needed to change SwapByDenom so we can get the outputs, thats why its included in here
 
 	indexer.QueueEvent(ctx, "/elys-event/tradeshield/stop-loss", indexerTradeshieldTypes.StopLossExecutionEvent{
 		BaseOrder: common.BaseOrder{
@@ -287,10 +286,6 @@ func (k Keeper) ExecuteLimitSellOrder(ctx sdk.Context, order types.SpotOrder) (*
 		return nil, err
 	}
 
-	/* *************************************************************************** */
-	/* Start of kwak-indexer node implementation*/
-	// ! Needed to change SwapByDenom so we can get the outputs, thats why its included in here
-
 	// Swap the order amount with the target denom
 	res, err := k.amm.SwapByDenom(ctx, &ammtypes.MsgSwapByDenom{
 		Sender:    order.OwnerAddress,
@@ -303,6 +298,10 @@ func (k Keeper) ExecuteLimitSellOrder(ctx sdk.Context, order types.SpotOrder) (*
 	if err != nil {
 		return res, err
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+
 	// Queue the limit sell order execution event
 	indexer.QueueEvent(ctx, "/elys-event/tradeshield/limit-sell", indexerTradeshieldTypes.StopLossExecutionEvent{
 		BaseOrder: common.BaseOrder{
@@ -424,6 +423,8 @@ func (k Keeper) ExecuteMarketBuyOrder(ctx sdk.Context, order types.SpotOrder) (*
 		return res, err
 	}
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
 	indexer.QueueEvent(ctx, "/elys-event/tradeshield/market-buy", indexerTradeshieldTypes.MarketOrderExecutionEvent{
 		BaseOrder: common.BaseOrder{
 			OrderID:      order.OrderId,

@@ -6,7 +6,7 @@ import (
 	"github.com/elys-network/elys/indexer/types"
 )
 
-type ClosePositionEvent struct {
+type LiquidationEvent struct {
 	Address        string      `json:"address"`
 	ID             uint64      `json:"id"`
 	Collateral     types.Token `json:"collateral"`
@@ -52,13 +52,7 @@ type StopLossEvent struct {
 	ProfitLossPerc string      `json:"profit_loss_perc"`
 }
 
-type UpdateStopLossEvent struct {
-	ID       uint64 `json:"id"`
-	Address  string `json:"address"`
-	StopLoss string `json:"stop_loss"`
-}
-
-func (e ClosePositionEvent) Process(database types.DatabaseManager, event types.BaseEvent) (types.Response, error) {
+func (e LiquidationEvent) Process(database types.DatabaseManager, event types.BaseEvent) (types.Response, error) {
 	mergedData := types.GenericEvent{
 		BaseEvent: event,
 		Data:      e,
@@ -95,20 +89,6 @@ func (e StopLossEvent) Process(database types.DatabaseManager, event types.BaseE
 	err := database.ProcessNewEvent(mergedData, event.Author)
 	if err != nil {
 		return types.Response{}, fmt.Errorf("error processing transaction: %w", err)
-	}
-
-	return types.Response{}, nil
-}
-
-func (e UpdateStopLossEvent) Process(database types.DatabaseManager, event types.BaseEvent) (types.Response, error) {
-	mergedData := types.GenericEvent{
-		BaseEvent: event,
-		Data:      e,
-	}
-
-	err := database.ProcessNewEvent(mergedData, event.Author)
-	if err != nil {
-		return types.Response{}, fmt.Errorf("error processing event: %w", err)
 	}
 
 	return types.Response{}, nil

@@ -101,9 +101,27 @@ func init() {
 	// Burner
 	RegisterTxType("/elys.burner.MsgUpdateParams", reflect.TypeOf(burner.MsgUpdateParams{}))
 
-	// Automatic events
-	RegisterTxType("/elys.burner.MsgUpdateParams", reflect.TypeOf(burner.MsgUpdateParams{}))
+	// Automatic events - These are events that are not triggered specifically by a TX
+	// Some examples include things that happen on a per block basis.
+	// But, say a TX has muttiple calls, they might end up as Event calls because its hard to link them back to one TX
 
+	// LeverageLP Events
+	RegisterTxType("/elys-event/leveragelp/liquidation", reflect.TypeOf(leveragelp.LiquidationEvent{}))
+	RegisterTxType("/elys-event/leveragelp/stop-loss", reflect.TypeOf(leveragelp.StopLossEvent{}))
+
+	// Masterchef Events
+	RegisterTxType("/elys-event/masterchef/claim-rewards", reflect.TypeOf(masterchef.ClaimRewardsEvent{}))
+
+	// Perpetual Events
+	RegisterTxType("/elys-event/perpetual/liquidation", reflect.TypeOf(perpetual.LiquidationEvent{}))
+	RegisterTxType("/elys-event/perpetual/stop-loss", reflect.TypeOf(perpetual.StopLossEvent{}))
+	RegisterTxType("/elys-event/perpetual/take-profit", reflect.TypeOf(perpetual.TakeProfitEvent{}))
+
+	// TradeShield Events
+	RegisterTxType("/elys-event/tradeshield/stop-loss", reflect.TypeOf(tradeshield.StopLossExecutionEvent{}))
+	RegisterTxType("/elys-event/tradeshield/limit-sell", reflect.TypeOf(tradeshield.LimitSellExecutionEvent{}))
+	RegisterTxType("/elys-event/tradeshield/limit-buy", reflect.TypeOf(tradeshield.LimitOrderExecutionEvent{}))
+	RegisterTxType("/elys-event/tradeshield/market-buy", reflect.TypeOf(tradeshield.MarketOrderExecutionEvent{}))
 }
 
 func RegisterTxType(txType string, dataType reflect.Type) {

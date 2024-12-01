@@ -184,7 +184,7 @@ func (k Keeper) CheckAndCloseAtStopLoss(ctx sdk.Context, position *types.Positio
 	profitLoss, profitLossPerc := calculateProfitLoss(initialValue, finalValue)
 
 	// Queue the stop loss event
-	indexer.QueueEvent(ctx, "/elys-event/stop-loss", indexerPerpetualTypes.StopLossEvent{
+	indexer.QueueEvent(ctx, "/elys-event/leveragelp/stop-loss", indexerPerpetualTypes.StopLossEvent{
 		PositionID: position.Id,
 		Address:    position.Address,
 		Collateral: indexerTypes.Token{

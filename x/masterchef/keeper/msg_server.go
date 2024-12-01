@@ -196,7 +196,7 @@ func (k Keeper) ClaimRewards(ctx sdk.Context, sender sdk.AccAddress, poolIds []u
 	}
 
 	// Queue the event
-	indexer.QueueEvent(ctx, "/elys-event/claim-rewards", indexerMasterchefTypes.ClaimRewardsEvent{
+	indexer.QueueEvent(ctx, "/elys-event/masterchef/claim-rewards", indexerMasterchefTypes.ClaimRewardsEvent{
 		Sender:      sender.String(),
 		Recipient:   recipient.String(),
 		PoolIDs:     poolIDsUint,
