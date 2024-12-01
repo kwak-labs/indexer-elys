@@ -5,6 +5,14 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerAmmTypes "github.com/elys-network/elys/indexer/txs/amm"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/elys-network/elys/x/amm/types"
 	assetprofiletypes "github.com/elys-network/elys/x/assetprofile/types"
@@ -70,6 +78,31 @@ func (k msgServer) FeedMultipleExternalLiquidity(goCtx context.Context, msg *typ
 	if !feeder.IsActive {
 		return nil, oracletypes.ErrPriceFeederNotActive
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexerLiquidity := make([]indexerAmmTypes.ExternalLiquidity, len(msg.Liquidity))
+	for i, liq := range msg.Liquidity {
+		amountDepthInfo := make([]indexerAmmTypes.AssetAmountDepth, len(liq.AmountDepthInfo))
+		for j, info := range liq.AmountDepthInfo {
+			amountDepthInfo[j] = indexerAmmTypes.AssetAmountDepth{
+				Asset:  info.Asset,
+				Amount: info.Amount.String(),
+				Depth:  info.Depth.String(),
+			}
+		}
+		indexerLiquidity[i] = indexerAmmTypes.ExternalLiquidity{
+			PoolID:          liq.PoolId,
+			AmountDepthInfo: amountDepthInfo,
+		}
+	}
+
+	indexer.QueueTransaction(ctx, indexerAmmTypes.MsgFeedMultipleExternalLiquidity{
+		Sender:    msg.Sender,
+		Liquidity: indexerLiquidity,
+	}, []string{})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	for _, el := range msg.Liquidity {
 		pool, found := k.GetPool(ctx, el.PoolId)

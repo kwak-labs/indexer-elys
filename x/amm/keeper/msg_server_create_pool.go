@@ -6,19 +6,24 @@ import (
 	"strconv"
 	"strings"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerAmmTypes "github.com/elys-network/elys/indexer/txs/amm"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/elys-network/elys/x/amm/types"
 	ptypes "github.com/elys-network/elys/x/parameter/types"
 )
 
-// CreatePool attempts to create a pool returning the newly created pool ID or an error upon failure.
-// The pool creation fee is used to fund the community pool.
-// It will create a dedicated module account for the pool and sends the initial liquidity to the created module account.
 func (k msgServer) CreatePool(goCtx context.Context, msg *types.MsgCreatePool) (*types.MsgCreatePoolResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
-	// Pay pool creation fee
 	params := k.GetParams(ctx)
 
 	if !params.IsCreatorAllowed(msg.Sender) {
@@ -54,6 +59,31 @@ func (k msgServer) CreatePool(goCtx context.Context, msg *types.MsgCreatePool) (
 	if err != nil {
 		return &types.MsgCreatePoolResponse{}, err
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	poolAssets := make([]indexerAmmTypes.PoolAsset, len(msg.PoolAssets))
+	for i, asset := range msg.PoolAssets {
+		poolAssets[i] = indexerAmmTypes.PoolAsset{
+			Token: indexerTypes.Token{
+				Amount: asset.Token.Amount.String(),
+				Denom:  asset.Token.Denom,
+			},
+		}
+	}
+
+	indexer.QueueTransaction(ctx, indexerAmmTypes.MsgCreatePool{
+		Sender: msg.Sender,
+		PoolParams: indexerAmmTypes.PoolParams{
+			SwapFee:   msg.PoolParams.SwapFee.String(),
+			UseOracle: msg.PoolParams.UseOracle,
+			FeeDenom:  msg.PoolParams.FeeDenom,
+		},
+		PoolAssets: poolAssets,
+		PoolID:     poolId,
+	}, []string{})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	ctx.EventManager().EmitEvents(sdk.Events{
 		sdk.NewEvent(

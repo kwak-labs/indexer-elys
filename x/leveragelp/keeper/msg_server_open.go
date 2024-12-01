@@ -5,6 +5,15 @@ import (
 	"fmt"
 	"strconv"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerLeveragelpTypes "github.com/elys-network/elys/indexer/txs/leveragelp"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -99,6 +108,29 @@ func (k Keeper) Open(ctx sdk.Context, msg *types.MsgOpen) (*types.MsgOpenRespons
 		sdk.NewAttribute("health", position.PositionHealth.String()),
 	)
 	ctx.EventManager().EmitEvent(event)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerLeveragelpTypes.MsgOpen{
+		Creator:          msg.Creator,
+		CollateralAsset:  msg.CollateralAsset,
+		CollateralAmount: msg.CollateralAmount.String(),
+		AmmPoolID:        msg.AmmPoolId,
+		Leverage:         msg.Leverage.String(),
+		StopLossPrice:    msg.StopLossPrice.String(),
+		Position: indexerLeveragelpTypes.PositionOpen{
+			ID:      position.Id,
+			Address: position.Address,
+			Collateral: indexerTypes.Token{
+				Amount: position.Collateral.Amount.String(),
+				Denom:  position.Collateral.Denom,
+			},
+			Liabilities: position.Liabilities.String(),
+			Health:      position.PositionHealth.String(),
+		},
+	}, []string{msg.Creator})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return &types.MsgOpenResponse{}, nil
 }

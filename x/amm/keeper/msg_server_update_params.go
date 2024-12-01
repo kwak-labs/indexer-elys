@@ -3,6 +3,14 @@ package keeper
 import (
 	"context"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerAmmTypes "github.com/elys-network/elys/indexer/txs/amm"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
@@ -17,5 +25,25 @@ func (k msgServer) UpdateParams(goCtx context.Context, msg *types.MsgUpdateParam
 	}
 
 	k.Keeper.SetParams(ctx, *msg.Params)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerAmmTypes.MsgUpdateParams{
+		Authority: msg.Authority,
+		Params: indexerAmmTypes.Params{
+			PoolCreationFee:             msg.Params.PoolCreationFee.String(),
+			SlippageTrackDuration:       msg.Params.SlippageTrackDuration,
+			BaseAssets:                  msg.Params.BaseAssets,
+			WeightBreakingFeeExponent:   msg.Params.WeightBreakingFeeExponent.String(),
+			WeightBreakingFeeMultiplier: msg.Params.WeightBreakingFeeMultiplier.String(),
+			WeightBreakingFeePortion:    msg.Params.WeightBreakingFeePortion.String(),
+			WeightRecoveryFeePortion:    msg.Params.WeightRecoveryFeePortion.String(),
+			ThresholdWeightDifference:   msg.Params.ThresholdWeightDifference.String(),
+			AllowedPoolCreators:         msg.Params.AllowedPoolCreators,
+		},
+	}, []string{})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgUpdateParamsResponse{}, nil
 }

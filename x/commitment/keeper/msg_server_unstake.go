@@ -4,6 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerCommitmentsTypes "github.com/elys-network/elys/indexer/txs/commitments"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
@@ -37,7 +46,7 @@ func (k msgServer) performUnstakeElys(ctx sdk.Context, msg *types.MsgUnstake) er
 		return errorsmod.Wrap(errorsmod.Error{}, "staking keeper")
 	}
 
-	msgServer := stakingkeeper.NewMsgServerImpl(stakingKeeper)
+	stakingMsgServer := stakingkeeper.NewMsgServerImpl(stakingKeeper)
 
 	address, err := sdk.AccAddressFromBech32(msg.Creator)
 	if err != nil {
@@ -53,11 +62,25 @@ func (k msgServer) performUnstakeElys(ctx sdk.Context, msg *types.MsgUnstake) er
 	if !amount.IsValid() || amount.Amount.IsZero() {
 		return fmt.Errorf("invalid amount")
 	}
-	msgMsgUndelegate := stakingtypes.NewMsgUndelegate(address.String(), validator_address.String(), amount)
 
-	if _, err := msgServer.Undelegate(ctx, msgMsgUndelegate); err != nil { // Discard the response because it's empty
+	msgUndelegate := stakingtypes.NewMsgUndelegate(address.String(), validator_address.String(), amount)
+
+	if _, err := stakingMsgServer.Undelegate(ctx, msgUndelegate); err != nil {
 		return errorsmod.Wrap(err, "elys unstake msg")
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerCommitmentsTypes.MsgUnstake{
+		Creator: address.String(),
+		Token: indexerTypes.Token{
+			Amount: amount.Amount.String(),
+			Denom:  amount.Denom,
+		},
+		ValidatorAddress: validator_address.String(),
+	}, []string{address.String()})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return nil
 }
@@ -69,10 +92,23 @@ func (k msgServer) performUncommit(ctx sdk.Context, msg *types.MsgUnstake) error
 		return errorsmod.Wrap(err, "failed validating msgMsgUncommit")
 	}
 
-	_, err := k.UncommitTokens(ctx, msgMsgUncommit) // Discard the response because it's empty
+	_, err := k.UncommitTokens(ctx, msgMsgUncommit)
 	if err != nil {
 		return errorsmod.Wrap(err, "uncommit msg")
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerCommitmentsTypes.MsgUnstake{
+		Creator: msgMsgUncommit.Creator,
+		Token: indexerTypes.Token{
+			Amount: msgMsgUncommit.Amount.String(),
+			Denom:  msgMsgUncommit.Denom,
+		},
+		ValidatorAddress: "uncommit",
+	}, []string{})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return nil
 }

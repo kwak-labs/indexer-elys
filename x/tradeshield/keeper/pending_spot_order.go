@@ -4,6 +4,16 @@ import (
 	"encoding/binary"
 	"math"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerTradeshieldTypes "github.com/elys-network/elys/indexer/txs/tradeshield"
+	"github.com/elys-network/elys/indexer/txs/tradeshield/common"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdkmath "cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
@@ -204,8 +214,12 @@ func (k Keeper) ExecuteStopLossOrder(ctx sdk.Context, order types.SpotOrder) err
 		return err
 	}
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	// ! Needed to change SwapByDenom so we can get the outputs, thats why its included in here
+
 	// Swap the order amount with the target denom
-	_, err = k.amm.SwapByDenom(ctx, &ammtypes.MsgSwapByDenom{
+	swapRes, err := k.amm.SwapByDenom(ctx, &ammtypes.MsgSwapByDenom{
 		Sender:    order.OwnerAddress,
 		Recipient: order.OwnerAddress,
 		Amount:    order.OrderAmount,
@@ -216,6 +230,34 @@ func (k Keeper) ExecuteStopLossOrder(ctx sdk.Context, order types.SpotOrder) err
 	if err != nil {
 		return err
 	}
+
+	indexer.QueueEvent(ctx, "/elys-event/tradeshield/stop-loss", indexerTradeshieldTypes.StopLossExecutionEvent{
+		BaseOrder: common.BaseOrder{
+			OrderID:      order.OrderId,
+			OwnerAddress: order.OwnerAddress,
+			OrderPrice: common.OrderPrice{
+				BaseDenom:  order.OrderPrice.BaseDenom,
+				QuoteDenom: order.OrderPrice.QuoteDenom,
+				Rate:       order.OrderPrice.Rate.String(),
+			},
+			OrderAmount: indexerTypes.Token{
+				Amount: order.OrderAmount.Amount.String(),
+				Denom:  order.OrderAmount.Denom,
+			},
+		},
+		SwapOutput: indexerTypes.Token{
+			Amount: swapRes.Amount.Amount.String(),
+			Denom:  swapRes.Amount.Denom,
+		},
+		MarketPrice: marketPrice.String(),
+		TargetDenom: order.OrderTargetDenom,
+		Date: common.OrderDate{
+			Height:    uint64(ctx.BlockHeight()),
+			Timestamp: uint64(ctx.BlockTime().Unix()),
+		},
+	}, []string{order.OwnerAddress})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	// Remove the order from the pending order list
 	k.RemovePendingSpotOrder(ctx, order.OrderId)
@@ -245,8 +287,12 @@ func (k Keeper) ExecuteLimitSellOrder(ctx sdk.Context, order types.SpotOrder) er
 		return err
 	}
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	// ! Needed to change SwapByDenom so we can get the outputs, thats why its included in here
+
 	// Swap the order amount with the target denom
-	_, err = k.amm.SwapByDenom(ctx, &ammtypes.MsgSwapByDenom{
+	swapRes, err := k.amm.SwapByDenom(ctx, &ammtypes.MsgSwapByDenom{
 		Sender:    order.OwnerAddress,
 		Recipient: order.OwnerAddress,
 		Amount:    order.OrderAmount,
@@ -257,6 +303,34 @@ func (k Keeper) ExecuteLimitSellOrder(ctx sdk.Context, order types.SpotOrder) er
 	if err != nil {
 		return err
 	}
+	// Queue the limit sell order execution event
+	indexer.QueueEvent(ctx, "/elys-event/tradeshield/limit-sell", indexerTradeshieldTypes.StopLossExecutionEvent{
+		BaseOrder: common.BaseOrder{
+			OrderID:      order.OrderId,
+			OwnerAddress: order.OwnerAddress,
+			OrderPrice: common.OrderPrice{
+				BaseDenom:  order.OrderPrice.BaseDenom,
+				QuoteDenom: order.OrderPrice.QuoteDenom,
+				Rate:       order.OrderPrice.Rate.String(),
+			},
+			OrderAmount: indexerTypes.Token{
+				Amount: order.OrderAmount.Amount.String(),
+				Denom:  order.OrderAmount.Denom,
+			},
+		},
+		SwapOutput: indexerTypes.Token{
+			Amount: swapRes.Amount.Amount.String(),
+			Denom:  swapRes.Amount.Denom,
+		},
+		MarketPrice: marketPrice.String(),
+		TargetDenom: order.OrderTargetDenom,
+		Date: common.OrderDate{
+			Height:    uint64(ctx.BlockHeight()),
+			Timestamp: uint64(ctx.BlockTime().Unix()),
+		},
+	}, []string{order.OwnerAddress})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	// Remove the order from the pending order list
 	k.RemovePendingSpotOrder(ctx, order.OrderId)
@@ -286,8 +360,11 @@ func (k Keeper) ExecuteLimitBuyOrder(ctx sdk.Context, order types.SpotOrder) err
 		return err
 	}
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	// ! Needed to change SwapByDenom so we can get the outputs, thats why its included in here
 	// Swap the order amount with the target denom
-	_, err = k.amm.SwapByDenom(ctx, &ammtypes.MsgSwapByDenom{
+	swapRes, err := k.amm.SwapByDenom(ctx, &ammtypes.MsgSwapByDenom{
 		Sender:    order.OwnerAddress,
 		Recipient: order.OwnerAddress,
 		Amount:    order.OrderAmount,
@@ -298,6 +375,33 @@ func (k Keeper) ExecuteLimitBuyOrder(ctx sdk.Context, order types.SpotOrder) err
 	if err != nil {
 		return err
 	}
+	indexer.QueueEvent(ctx, "/elys-event/tradeshield/limit-buy", indexerTradeshieldTypes.LimitOrderExecutionEvent{
+		BaseOrder: common.BaseOrder{
+			OrderID:      order.OrderId,
+			OwnerAddress: order.OwnerAddress,
+			OrderPrice: common.OrderPrice{
+				BaseDenom:  order.OrderPrice.BaseDenom,
+				QuoteDenom: order.OrderPrice.QuoteDenom,
+				Rate:       order.OrderPrice.Rate.String(),
+			},
+			OrderAmount: indexerTypes.Token{
+				Amount: order.OrderAmount.Amount.String(),
+				Denom:  order.OrderAmount.Denom,
+			},
+		},
+		SwapOutput: indexerTypes.Token{
+			Amount: swapRes.Amount.Amount.String(),
+			Denom:  swapRes.Amount.Denom,
+		},
+		MarketPrice:      marketPrice.String(),
+		OrderTargetDenom: order.OrderTargetDenom,
+		Date: common.OrderDate{
+			Height:    uint64(ctx.BlockHeight()),
+			Timestamp: uint64(ctx.BlockTime().Unix()),
+		},
+	}, []string{order.OwnerAddress})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	// Remove the order from the pending order list
 	k.RemovePendingSpotOrder(ctx, order.OrderId)
@@ -307,8 +411,11 @@ func (k Keeper) ExecuteLimitBuyOrder(ctx sdk.Context, order types.SpotOrder) err
 
 // ExecuteMarketBuyOrder executes a market buy order
 func (k Keeper) ExecuteMarketBuyOrder(ctx sdk.Context, order types.SpotOrder) error {
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	// ! Needed to change SwapByDenom so we can get the outputs, thats why its included in here
 	// Swap the order amount with the target denom
-	_, err := k.amm.SwapByDenom(ctx, &ammtypes.MsgSwapByDenom{
+	swapRes, err := k.amm.SwapByDenom(ctx, &ammtypes.MsgSwapByDenom{
 		Sender:    order.OwnerAddress,
 		Recipient: order.OwnerAddress,
 		Amount:    order.OrderAmount,
@@ -319,6 +426,33 @@ func (k Keeper) ExecuteMarketBuyOrder(ctx sdk.Context, order types.SpotOrder) er
 	if err != nil {
 		return err
 	}
+
+	indexer.QueueEvent(ctx, "/elys-event/tradeshield/market-buy", indexerTradeshieldTypes.MarketOrderExecutionEvent{
+		BaseOrder: common.BaseOrder{
+			OrderID:      order.OrderId,
+			OwnerAddress: order.OwnerAddress,
+			OrderPrice: common.OrderPrice{
+				BaseDenom:  order.OrderPrice.BaseDenom,
+				QuoteDenom: order.OrderPrice.QuoteDenom,
+				Rate:       order.OrderPrice.Rate.String(),
+			},
+			OrderAmount: indexerTypes.Token{
+				Amount: order.OrderAmount.Amount.String(),
+				Denom:  order.OrderAmount.Denom,
+			},
+		},
+		SwapOutput: indexerTypes.Token{
+			Amount: swapRes.Amount.Amount.String(),
+			Denom:  swapRes.Amount.Denom,
+		},
+		TargetDenom: order.OrderTargetDenom,
+		Date: common.OrderDate{
+			Height:    uint64(ctx.BlockHeight()),
+			Timestamp: uint64(ctx.BlockTime().Unix()),
+		},
+	}, []string{order.OwnerAddress})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return nil
 }

@@ -2,8 +2,17 @@ package keeper
 
 import (
 	"context"
-	sdkmath "cosmossdk.io/math"
 	"fmt"
+
+	sdkmath "cosmossdk.io/math"
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerLeveragelpTypes "github.com/elys-network/elys/indexer/txs/leveragelp"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -45,6 +54,19 @@ func (k msgServer) AddPool(goCtx context.Context, msg *types.MsgAddPool) (*types
 			return nil, err
 		}
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerLeveragelpTypes.MsgAddPool{
+		Authority: msg.Authority,
+		Pool: indexerLeveragelpTypes.AddPool{
+			AmmPoolID:   msg.Pool.AmmPoolId,
+			LeverageMax: msg.Pool.LeverageMax.String(),
+			Leverage:    leverage.String(),
+		},
+	}, []string{})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return &types.MsgAddPoolResponse{}, nil
 }

@@ -4,6 +4,15 @@ import (
 	"context"
 	"strconv"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerLeveragelpTypes "github.com/elys-network/elys/indexer/txs/leveragelp"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/elys-network/elys/x/leveragelp/types"
 )
@@ -39,6 +48,27 @@ func (k Keeper) Close(ctx sdk.Context, msg *types.MsgClose) (*types.MsgCloseResp
 		sdk.NewAttribute("liabilities", closedPosition.Liabilities.String()),
 		sdk.NewAttribute("health", closedPosition.PositionHealth.String()),
 	))
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerLeveragelpTypes.MsgClose{
+		Creator:     msg.Creator,
+		ID:          msg.Id,
+		LpAmount:    msg.LpAmount.String(),
+		RepayAmount: repayAmount.String(),
+		Position: indexerLeveragelpTypes.Position{
+			ID:      closedPosition.Id,
+			Address: closedPosition.Address,
+			Collateral: indexerTypes.Token{
+				Amount: closedPosition.Collateral.Amount.String(),
+				Denom:  closedPosition.Collateral.Denom,
+			},
+			Liabilities:    closedPosition.Liabilities.String(),
+			PositionHealth: closedPosition.PositionHealth.String(),
+		},
+	}, []string{msg.Creator})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return &types.MsgCloseResponse{}, nil
 }

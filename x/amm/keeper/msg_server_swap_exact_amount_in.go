@@ -3,6 +3,15 @@ package keeper
 import (
 	"context"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerAmmTypes "github.com/elys-network/elys/indexer/txs/amm"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/elys-network/elys/x/amm/types"
@@ -20,7 +29,41 @@ func (k msgServer) SwapExactAmountIn(goCtx context.Context, msg *types.MsgSwapEx
 		),
 	})
 
-	return k.Keeper.SwapExactAmountIn(ctx, msg)
+	response, err := k.Keeper.SwapExactAmountIn(ctx, msg)
+	if err != nil {
+		return nil, err
+	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	routes := make([]indexerAmmTypes.SwapAmountInRoute, len(msg.Routes))
+	for i, route := range msg.Routes {
+		routes[i] = indexerAmmTypes.SwapAmountInRoute{
+			PoolID:        route.PoolId,
+			TokenOutDenom: route.TokenOutDenom,
+		}
+	}
+
+	indexer.QueueTransaction(ctx, indexerAmmTypes.MsgSwapExactAmountIn{
+		Sender: msg.Sender,
+		Routes: routes,
+		TokenIn: indexerTypes.Token{
+			Amount: msg.TokenIn.Amount.String(),
+			Denom:  msg.TokenIn.Denom,
+		},
+		TokenOutMinAmount: msg.TokenOutMinAmount.String(),
+		Recipient:         msg.Recipient,
+		SwapFee:           response.SwapFee.String(),
+		Discount:          response.Discount.String(),
+		AmountOut: indexerTypes.Token{
+			Amount: response.TokenOutAmount.String(),
+			Denom:  msg.Routes[len(msg.Routes)-1].TokenOutDenom,
+		},
+	}, []string{msg.Recipient})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
+	return response, nil
 }
 
 func (k Keeper) SwapExactAmountIn(ctx sdk.Context, msg *types.MsgSwapExactAmountIn) (*types.MsgSwapExactAmountInResponse, error) {

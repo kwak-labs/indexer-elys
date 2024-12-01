@@ -2,10 +2,18 @@ package keeper
 
 import (
 	"context"
-	errorsmod "cosmossdk.io/errors"
 	"fmt"
 	"strings"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerLeveragelpTypes "github.com/elys-network/elys/indexer/txs/leveragelp"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
+	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/elys-network/elys/x/leveragelp/types"
 )
@@ -48,7 +56,6 @@ func (k msgServer) ClosePositions(goCtx context.Context, msg *types.MsgClosePosi
 				return nil, err
 			}
 		}
-
 	}
 
 	// Handle stop loss
@@ -91,6 +98,36 @@ func (k msgServer) ClosePositions(goCtx context.Context, msg *types.MsgClosePosi
 		sdk.NewAttribute("liquidations", strings.Join(liqLog, "\n")),
 		sdk.NewAttribute("stop_loss", strings.Join(closeLog, "\n")),
 	))
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	// Convert position requests to indexer format
+	liquidateRequests := make([]indexerLeveragelpTypes.PositionRequest, len(msg.Liquidate))
+	for i, req := range msg.Liquidate {
+		liquidateRequests[i] = indexerLeveragelpTypes.PositionRequest{
+			Address: req.Address,
+			ID:      req.Id,
+		}
+	}
+
+	stopLossRequests := make([]indexerLeveragelpTypes.PositionRequest, len(msg.StopLoss))
+	for i, req := range msg.StopLoss {
+		stopLossRequests[i] = indexerLeveragelpTypes.PositionRequest{
+			Address: req.Address,
+			ID:      req.Id,
+		}
+	}
+
+	// Queue the transaction
+	indexer.QueueTransaction(ctx, indexerLeveragelpTypes.MsgClosePositions{
+		Creator:    msg.Creator,
+		Liquidate:  liquidateRequests,
+		StopLoss:   stopLossRequests,
+		LiquidLogs: liqLog,
+		CloseLogs:  closeLog,
+	}, []string{msg.Creator})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return &types.MsgClosePositionsResponse{}, nil
 }

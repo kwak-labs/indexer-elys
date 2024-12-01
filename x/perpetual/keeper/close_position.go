@@ -3,6 +3,16 @@ package keeper
 import (
 	"fmt"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+
+	indexer "github.com/elys-network/elys/indexer"
+	indexerPerpetualTypes "github.com/elys-network/elys/indexer/txs/perpetual"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -10,12 +20,24 @@ import (
 )
 
 func (k Keeper) ClosePosition(ctx sdk.Context, msg *types.MsgClose, baseCurrency string) (*types.MTP, math.Int, math.LegacyDec, error) {
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	var initialCollateral math.LegacyDec
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	// Retrieve MTP
 	creator := sdk.MustAccAddressFromBech32(msg.Creator)
 	mtp, err := k.GetMTP(ctx, creator, msg.Id)
 	if err != nil {
 		return nil, math.ZeroInt(), math.LegacyZeroDec(), err
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	initialCollateral = math.LegacyNewDecFromInt(mtp.Collateral)
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	// Retrieve AmmPool
 	ammPool, err := k.GetAmmPool(ctx, mtp.AmmPoolId)
@@ -65,5 +87,57 @@ func (k Keeper) ClosePosition(ctx sdk.Context, msg *types.MsgClose, baseCurrency
 		}
 	}
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	finalValue := math.LegacyNewDecFromInt(repayAmt).Sub(mtp.Liabilities.ToLegacyDec())
+	profitLoss, profitLossPerc := calculateProfitLoss(initialCollateral, finalValue)
+
+	indexer.QueueTransaction(ctx, indexerPerpetualTypes.MsgClose{
+		Creator:  msg.Creator,
+		Id:       msg.Id,
+		Amount:   msg.Amount.String(),
+		Position: mtp.Position.String(),
+		Collateral: indexerTypes.Token{
+			Amount: mtp.Collateral.String(),
+			Denom:  mtp.CollateralAsset,
+		},
+		Custody: indexerTypes.Token{
+			Amount: mtp.Custody.String(),
+			Denom:  mtp.CustodyAsset,
+		},
+		Liabilities: indexerTypes.Token{
+			Amount: mtp.Liabilities.String(),
+			Denom:  mtp.LiabilitiesAsset,
+		},
+		RepayAmount:      repayAmt.String(),
+		InitialValue:     initialCollateral.String(),
+		FinalValue:       finalValue.String(),
+		ProfitLoss:       profitLoss.String(),
+		ProfitLossPerc:   profitLossPerc.String(),
+		CollateralAsset:  mtp.CollateralAsset,
+		TradingAsset:     mtp.TradingAsset,
+		LiabilitiesAsset: mtp.LiabilitiesAsset,
+		MtpHealth:        mtp.MtpHealth.String(),
+		OpenPrice:        mtp.OpenPrice.String(),
+	}, []string{msg.Creator})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &mtp, repayAmt, closingRatio, nil
 }
+
+/* *************************************************************************** */
+/* Start of kwak-indexer node implementation*/
+func calculateProfitLoss(
+	initialValue math.LegacyDec,
+	finalValue math.LegacyDec,
+) (profitLoss math.LegacyDec, profitLossPerc math.LegacyDec) {
+	profitLoss = finalValue.Sub(initialValue)
+	if !initialValue.IsZero() {
+		profitLossPerc = profitLoss.Quo(initialValue).Mul(math.LegacyNewDec(100))
+	}
+	return profitLoss, profitLossPerc
+}
+
+/* End of kwak-indexer node implementation*/
+/* *************************************************************************** */

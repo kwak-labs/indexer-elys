@@ -4,6 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerCommitmentsTypes "github.com/elys-network/elys/indexer/txs/commitments"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -71,6 +80,19 @@ func (k msgServer) performStakeElys(ctx sdk.Context, msg *types.MsgStake) error 
 	if _, err := stakingMsgServer.Delegate(ctx, msgMsgDelegate); err != nil { // Discard the response because it's empty
 		return errorsmod.Wrap(err, "elys stake msg")
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation */
+	indexer.QueueTransaction(ctx, indexerCommitmentsTypes.MsgStake{
+		Creator: address.String(),
+		Token: indexerTypes.Token{
+			Amount: amount.Amount.String(),
+			Denom:  amount.Denom,
+		},
+		ValidatorAddresss: validator_address.String(),
+	}, []string{address.String()})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return nil
 }

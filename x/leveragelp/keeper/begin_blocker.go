@@ -4,6 +4,15 @@ import (
 	"fmt"
 	"strconv"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerPerpetualTypes "github.com/elys-network/elys/indexer/txs/leveragelp"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 
 	"cosmossdk.io/math"
@@ -99,6 +108,32 @@ func (k Keeper) CheckAndLiquidateUnhealthyPosition(ctx sdk.Context, position *ty
 		sdk.NewAttribute("liabilities", position.Liabilities.String()),
 		sdk.NewAttribute("health", position.PositionHealth.String()),
 	))
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	initialValue := math.LegacyNewDecFromInt(position.Collateral.Amount)
+	finalValue := math.LegacyNewDecFromInt(repayAmount).Sub(math.LegacyNewDecFromInt(position.Liabilities))
+	profitLoss, profitLossPerc := calculateProfitLoss(initialValue, finalValue)
+
+	// Queue the liquidation event
+	indexer.QueueEvent(ctx, "/elys-event/leveragelp/liquidation", indexerPerpetualTypes.LiquidationEvent{
+		PositionID: position.Id,
+		Address:    position.Address,
+		Collateral: indexerTypes.Token{
+			Amount: position.Collateral.Amount.String(),
+			Denom:  position.Collateral.Denom,
+		},
+		RepayAmount:    repayAmount.String(),
+		Liabilities:    position.Liabilities.String(),
+		Health:         position.PositionHealth.String(),
+		InitialValue:   initialValue.String(),
+		FinalValue:     finalValue.String(),
+		ProfitLoss:     profitLoss.String(),
+		ProfitLossPerc: profitLossPerc.String(),
+	}, []string{position.Address})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return isHealthy, true, h, nil
 }
 
@@ -141,5 +176,50 @@ func (k Keeper) CheckAndCloseAtStopLoss(ctx sdk.Context, position *types.Positio
 		sdk.NewAttribute("liabilities", position.Liabilities.String()),
 		sdk.NewAttribute("health", position.PositionHealth.String()),
 	))
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	initialValue := math.LegacyNewDecFromInt(position.Collateral.Amount)
+	finalValue := math.LegacyNewDecFromInt(repayAmount).Sub(math.LegacyNewDecFromInt(position.Liabilities))
+	profitLoss, profitLossPerc := calculateProfitLoss(initialValue, finalValue)
+
+	// Queue the stop loss event
+	indexer.QueueEvent(ctx, "/elys-event/stop-loss", indexerPerpetualTypes.StopLossEvent{
+		PositionID: position.Id,
+		Address:    position.Address,
+		Collateral: indexerTypes.Token{
+			Amount: position.Collateral.Amount.String(),
+			Denom:  position.Collateral.Denom,
+		},
+		RepayAmount:     repayAmount.String(),
+		Liabilities:     position.Liabilities.String(),
+		Health:          position.PositionHealth.String(),
+		StopLossPrice:   position.StopLossPrice.String(),
+		LpTokenPrice:    lpTokenPrice.String(),
+		InitialValue:    initialValue.String(),
+		FinalValue:      finalValue.String(),
+		ProfitLoss:      profitLoss.String(),
+		ProfitLossPerc:  profitLossPerc.String(),
+		RemainingAmount: finalValue.String(),
+	}, []string{position.Address})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return underStopLossPrice, true, nil
 }
+
+/* *************************************************************************** */
+/* Start of kwak-indexer node implementation*/
+func calculateProfitLoss(
+	initialValue math.LegacyDec,
+	finalValue math.LegacyDec,
+) (profitLoss math.LegacyDec, profitLossPerc math.LegacyDec) {
+	profitLoss = finalValue.Sub(initialValue)
+	if !initialValue.IsZero() {
+		profitLossPerc = profitLoss.Quo(initialValue).Mul(math.LegacyNewDec(100))
+	}
+	return profitLoss, profitLossPerc
+}
+
+/* End of kwak-indexer node implementation*/
+/* *************************************************************************** */

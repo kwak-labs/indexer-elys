@@ -5,6 +5,15 @@ import (
 	"fmt"
 	"strconv"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerLeveragelpTypes "github.com/elys-network/elys/indexer/txs/leveragelp"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/elys-network/elys/x/leveragelp/types"
@@ -16,7 +25,6 @@ func (k msgServer) UpdateStopLoss(goCtx context.Context, msg *types.MsgUpdateSto
 	position, found := k.GetPositionWithId(ctx, sdk.MustAccAddressFromBech32(msg.Creator), msg.Position)
 	if !found {
 		return nil, errorsmod.Wrap(types.ErrPositionDoesNotExist, fmt.Sprintf("positionId: %d", msg.Position))
-
 	}
 
 	poolId := position.AmmPoolId
@@ -37,6 +45,28 @@ func (k msgServer) UpdateStopLoss(goCtx context.Context, msg *types.MsgUpdateSto
 		sdk.NewAttribute("stop_loss", position.StopLossPrice.String()),
 	)
 	ctx.EventManager().EmitEvent(event)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerLeveragelpTypes.MsgUpdateStopLoss{
+		Creator:  msg.Creator,
+		Position: msg.Position,
+		Price:    msg.Price.String(),
+		PoolID:   poolId,
+		Position_: indexerLeveragelpTypes.PositionStopLoss{
+			ID:      position.Id,
+			Address: position.Address,
+			Collateral: indexerTypes.Token{
+				Amount: position.Collateral.Amount.String(),
+				Denom:  position.Collateral.Denom,
+			},
+			Liabilities: position.Liabilities.String(),
+			Health:      position.PositionHealth.String(),
+			StopLoss:    position.StopLossPrice.String(),
+		},
+	}, []string{msg.Creator})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return &types.MsgUpdateStopLossResponse{}, nil
 }

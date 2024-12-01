@@ -1,7 +1,16 @@
 package keeper
 
 import (
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerOracleTypes "github.com/elys-network/elys/indexer/txs/oracle"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	"context"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/elys-network/elys/x/oracle/types"
 )
@@ -30,6 +39,27 @@ func (k msgServer) FeedMultiplePrices(goCtx context.Context, msg *types.MsgFeedM
 		}
 		k.SetPrice(ctx, price)
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	// Convert feed prices to indexer format
+	indexerFeedPrices := make([]indexerOracleTypes.FeedPrice, len(msg.FeedPrices))
+	for i, fp := range msg.FeedPrices {
+		indexerFeedPrices[i] = indexerOracleTypes.FeedPrice{
+			Asset:  fp.Asset,
+			Price:  fp.Price.String(),
+			Source: fp.Source,
+		}
+	}
+
+	// Queue the transaction
+	indexer.QueueTransaction(ctx, indexerOracleTypes.MsgFeedMultiplePrices{
+		Creator:    msg.Creator,
+		FeedPrices: indexerFeedPrices,
+		Timestamp:  uint64(ctx.BlockTime().Unix()),
+	}, []string{msg.Creator})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return &types.MsgFeedMultiplePricesResponse{}, nil
 }

@@ -2,7 +2,17 @@ package keeper
 
 import (
 	"context"
+
 	sdkmath "cosmossdk.io/math"
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerCommitmentsTypes "github.com/elys-network/elys/indexer/txs/commitments"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -60,6 +70,18 @@ func (k msgServer) CancelVest(goCtx context.Context, msg *types.MsgCancelVest) (
 	// Update the unclaimed tokens amount
 	commitments.AddClaimed(sdk.NewCoin(ptypes.Eden, msg.Amount))
 	k.SetCommitments(ctx, commitments)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerCommitmentsTypes.MsgCancelVest{
+		Creator: msg.Creator,
+		Token: indexerTypes.Token{
+			Amount: msg.Amount.String(),
+			Denom:  msg.Denom,
+		},
+	}, []string{})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	// Emit blockchain event
 	ctx.EventManager().EmitEvent(

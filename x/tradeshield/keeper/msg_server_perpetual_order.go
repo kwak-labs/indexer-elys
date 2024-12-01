@@ -4,6 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerTradeshieldTypes "github.com/elys-network/elys/indexer/txs/tradeshield"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -94,6 +103,29 @@ func (k msgServer) CreatePerpetualOpenOrder(goCtx context.Context, msg *types.Ms
 		return nil, err
 	}
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerTradeshieldTypes.MsgCreatePerpetualOpenOrder{
+		OwnerAddress: msg.OwnerAddress,
+		TriggerPrice: indexerTradeshieldTypes.TriggerPrice{
+			TradingAssetDenom: msg.TriggerPrice.TradingAssetDenom,
+			Rate:              msg.TriggerPrice.Rate.String(),
+		},
+		Collateral: indexerTypes.Token{
+			Amount: msg.Collateral.Amount.String(),
+			Denom:  msg.Collateral.Denom,
+		},
+		TradingAsset:    msg.TradingAsset,
+		Position:        int32(msg.Position),
+		Leverage:        msg.Leverage.String(),
+		TakeProfitPrice: msg.TakeProfitPrice.String(),
+		StopLossPrice:   msg.StopLossPrice.String(),
+		PoolID:          msg.PoolId,
+		OrderID:         id,
+	}, []string{msg.OwnerAddress})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgCreatePerpetualOpenOrderResponse{
 		OrderId: pendingPerpetualOrder.OrderId,
 	}, nil
@@ -162,6 +194,19 @@ func (k msgServer) UpdatePerpetualOrder(goCtx context.Context, msg *types.MsgUpd
 	order.TriggerPrice = msg.TriggerPrice
 	k.SetPendingPerpetualOrder(ctx, order)
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerTradeshieldTypes.MsgUpdatePerpetualOrder{
+		OwnerAddress: msg.OwnerAddress,
+		OrderID:      msg.OrderId,
+		TriggerPrice: indexerTradeshieldTypes.TriggerPrice{
+			TradingAssetDenom: msg.TriggerPrice.TradingAssetDenom,
+			Rate:              msg.TriggerPrice.Rate.String(),
+		},
+	}, []string{msg.OwnerAddress})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgUpdatePerpetualOrderResponse{}, nil
 }
 
@@ -189,6 +234,19 @@ func (k msgServer) CancelPerpetualOrder(goCtx context.Context, msg *types.MsgCan
 	k.RemovePendingPerpetualOrder(ctx, msg.OrderId)
 	types.EmitCancelPerpetualOrderEvent(ctx, order)
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerTradeshieldTypes.MsgCancelPerpetualOrder{
+		OwnerAddress: msg.OwnerAddress,
+		OrderID:      msg.OrderId,
+		Collateral: indexerTypes.Token{
+			Amount: order.Collateral.Amount.String(),
+			Denom:  order.Collateral.Denom,
+		},
+	}, []string{msg.OwnerAddress})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgCancelPerpetualOrderResponse{
 		OrderId: order.OrderId,
 	}, nil
@@ -198,6 +256,17 @@ func (k msgServer) CancelPerpetualOrders(goCtx context.Context, msg *types.MsgCa
 	if len(msg.OrderIds) == 0 {
 		return nil, types.ErrSizeZero
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	indexer.QueueTransaction(ctx, indexerTradeshieldTypes.MsgCancelPerpetualOrders{
+		OwnerAddress: msg.OwnerAddress,
+		OrderIds:     msg.OrderIds,
+	}, []string{msg.OwnerAddress})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	// loop through the spot orders and cancel them
 	for _, orderId := range msg.OrderIds {
 		_, err := k.CancelPerpetualOrder(goCtx, &types.MsgCancelPerpetualOrder{

@@ -6,6 +6,15 @@ import (
 	"strconv"
 	"strings"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerMasterchefTypes "github.com/elys-network/elys/indexer/txs/masterchef"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -168,6 +177,34 @@ func (k Keeper) ClaimRewards(ctx sdk.Context, sender sdk.AccAddress, poolIds []u
 		),
 	})
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	// Convert coins to indexer token type
+	rewardTokens := make([]indexerTypes.Token, len(coins))
+	for i, coin := range coins {
+		rewardTokens[i] = indexerTypes.Token{
+			Amount: coin.Amount.String(),
+			Denom:  coin.Denom,
+		}
+	}
+
+	// Convert pool IDs from strings back to uint64
+	poolIDsUint := make([]uint64, len(rewardPoolIds))
+	for i, idStr := range rewardPoolIds {
+		id, _ := strconv.ParseUint(idStr, 10, 64)
+		poolIDsUint[i] = id
+	}
+
+	// Queue the event
+	indexer.QueueEvent(ctx, "/elys-event/claim-rewards", indexerMasterchefTypes.ClaimRewardsEvent{
+		Sender:      sender.String(),
+		Recipient:   recipient.String(),
+		PoolIDs:     poolIDsUint,
+		RewardCoins: rewardTokens,
+	}, []string{recipient.String()})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	// Transfer rewards (Eden/EdenB is transferred through commitment module)
 	err := k.commitmentKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, recipient, coins)
 	if err != nil {
@@ -192,6 +229,15 @@ func (k msgServer) ClaimRewards(goCtx context.Context, msg *types.MsgClaimReward
 	if err != nil {
 		return nil, err
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerMasterchefTypes.MsgClaimRewards{
+		Sender:  msg.Sender,
+		PoolIds: msg.PoolIds,
+	}, []string{sender.String()})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return &types.MsgClaimRewardsResponse{}, nil
 }

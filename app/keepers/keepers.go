@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"cosmossdk.io/log"
+
 	storetypes "cosmossdk.io/store/types"
 	evidencekeeper "cosmossdk.io/x/evidence/keeper"
 	evidencetypes "cosmossdk.io/x/evidence/types"

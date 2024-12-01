@@ -16,6 +16,12 @@ func (k Keeper) Close(ctx sdk.Context, msg *types.MsgClose) (*types.MsgCloseResp
 	}
 	baseCurrency := entry.Denom
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	// ! Close is handled in the function below
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+
 	closedMtp, repayAmount, closingRatio, err := k.ClosePosition(ctx, msg, baseCurrency)
 	if err != nil {
 		return nil, err

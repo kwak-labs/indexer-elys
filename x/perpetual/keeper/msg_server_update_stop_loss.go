@@ -5,6 +5,14 @@ import (
 	"fmt"
 	"strconv"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerPerpetualTypes "github.com/elys-network/elys/indexer/txs/perpetual"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/elys-network/elys/x/perpetual/types"
@@ -54,6 +62,24 @@ func (k msgServer) UpdateStopLoss(goCtx context.Context, msg *types.MsgUpdateSto
 		sdk.NewAttribute("stop_loss", mtp.StopLossPrice.String()),
 	)
 	ctx.EventManager().EmitEvent(event)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	// Queue the transaction
+	indexer.QueueTransaction(ctx, indexerPerpetualTypes.MsgUpdateStopLoss{
+		Creator: msg.Creator,
+		ID:      msg.Id,
+		Price:   msg.Price.String(),
+	}, []string{msg.Creator})
+
+	// Queue the event
+	indexer.QueueEvent(ctx, "/elys-event/perpetual/update/stop-loss", indexerPerpetualTypes.UpdateStopLossEvent{
+		ID:       mtp.Id,
+		Address:  mtp.Address,
+		StopLoss: mtp.StopLossPrice.String(),
+	}, []string{mtp.Address})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return &types.MsgUpdateStopLossResponse{}, nil
 }

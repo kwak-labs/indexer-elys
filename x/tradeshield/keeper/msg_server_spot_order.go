@@ -5,6 +5,15 @@ import (
 
 	errorsmod "cosmossdk.io/errors"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerTradeShieldTypes "github.com/elys-network/elys/indexer/txs/tradeshield"
+	"github.com/elys-network/elys/indexer/txs/tradeshield/common"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/elys-network/elys/x/tradeshield/types"
@@ -48,6 +57,28 @@ func (k msgServer) CreateSpotOrder(goCtx context.Context, msg *types.MsgCreateSp
 		return nil, err
 	}
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerTradeShieldTypes.MsgCreateSpotOrder{
+		BaseOrder: common.BaseOrder{
+			OrderID:      id,
+			OwnerAddress: msg.OwnerAddress,
+			OrderPrice: common.OrderPrice{
+				BaseDenom:  msg.OrderPrice.BaseDenom,
+				QuoteDenom: msg.OrderPrice.QuoteDenom,
+				Rate:       msg.OrderPrice.Rate.String(),
+			},
+			OrderAmount: indexerTypes.Token{
+				Amount: msg.OrderAmount.Amount.String(),
+				Denom:  msg.OrderAmount.Denom,
+			},
+		},
+		OrderType:        common.OrderType(msg.OrderType),
+		OrderTargetDenom: msg.OrderTargetDenom,
+	}, []string{msg.OwnerAddress})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	// return the order id
 	return &types.MsgCreateSpotOrderResponse{
 		OrderId: pendingSpotOrder.OrderId,
@@ -71,6 +102,20 @@ func (k msgServer) UpdateSpotOrder(goCtx context.Context, msg *types.MsgUpdateSp
 	// update the order
 	order.OrderPrice = msg.OrderPrice
 	k.SetPendingSpotOrder(ctx, order)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerTradeShieldTypes.MsgUpdateSpotOrder{
+		OwnerAddress: msg.OwnerAddress,
+		OrderID:      msg.OrderId,
+		OrderPrice: common.OrderPrice{
+			BaseDenom:  msg.OrderPrice.BaseDenom,
+			QuoteDenom: msg.OrderPrice.QuoteDenom,
+			Rate:       msg.OrderPrice.Rate.String(),
+		},
+	}, []string{msg.OwnerAddress})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return &types.MsgUpdateSpotOrderResponse{}, nil
 }
@@ -98,6 +143,15 @@ func (k msgServer) CancelSpotOrder(goCtx context.Context, msg *types.MsgCancelSp
 	k.RemovePendingSpotOrder(ctx, msg.OrderId)
 	types.EmitCloseSpotOrderEvent(ctx, spotOrder)
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerTradeShieldTypes.MsgCancelSpotOrder{
+		OwnerAddress: msg.OwnerAddress,
+		OrderId:      msg.OrderId,
+	}, []string{msg.OwnerAddress})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgCancelSpotOrderResponse{
 		OrderId: spotOrder.OrderId,
 	}, nil
@@ -117,6 +171,16 @@ func (k msgServer) CancelSpotOrders(goCtx context.Context, msg *types.MsgCancelS
 			return nil, err
 		}
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	indexer.QueueTransaction(ctx, indexerTradeShieldTypes.MsgCancelSpotOrders{
+		Creator:      msg.Creator,
+		SpotOrderIds: msg.SpotOrderIds,
+	}, []string{msg.Creator})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return &types.MsgCancelSpotOrdersResponse{}, nil
 }

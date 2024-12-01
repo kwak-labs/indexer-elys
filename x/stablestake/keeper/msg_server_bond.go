@@ -2,7 +2,16 @@ package keeper
 
 import (
 	"context"
+
 	sdkmath "cosmossdk.io/math"
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerStableStakeTypes "github.com/elys-network/elys/indexer/txs/stablestake"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -79,6 +88,19 @@ func (k msgServer) Bond(goCtx context.Context, msg *types.MsgBond) (*types.MsgBo
 
 	params.TotalValue = params.TotalValue.Add(msg.Amount)
 	k.SetParams(ctx, params)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerStableStakeTypes.MsgBond{
+		Creator:        msg.Creator,
+		Amount:         msg.Amount.String(),
+		DepositDenom:   depositDenom,
+		ShareAmount:    shareAmount.String(),
+		ShareDenom:     shareDenom,
+		RedemptionRate: redemptionRate.String(),
+	}, []string{msg.Creator})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	if k.hooks != nil {
 		err = k.hooks.AfterBond(ctx, creator, shareAmount)

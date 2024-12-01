@@ -4,6 +4,14 @@ import (
 	"context"
 	"strings"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerAssetProfileTypes "github.com/elys-network/elys/indexer/txs/assetprofile"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -55,5 +63,32 @@ func (k msgServer) AddEntry(goCtx context.Context, msg *types.MsgAddEntry) (*typ
 	}
 
 	k.SetEntry(ctx, entry)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerAssetProfileTypes.MsgAddEntry{
+		Authority:                k.authority,
+		BaseDenom:                msg.BaseDenom,
+		Decimals:                 msg.Decimals,
+		Denom:                    msg.Denom,
+		Path:                     msg.Path,
+		IbcChannelId:             msg.IbcChannelId,
+		IbcCounterpartyChannelId: msg.IbcCounterpartyChannelId,
+		DisplayName:              msg.DisplayName,
+		DisplaySymbol:            msg.DisplaySymbol,
+		Network:                  msg.Network,
+		Address:                  msg.Address,
+		ExternalSymbol:           msg.ExternalSymbol,
+		TransferLimit:            msg.TransferLimit,
+		Permissions:              msg.Permissions,
+		UnitDenom:                msg.UnitDenom,
+		IbcCounterpartyDenom:     msg.IbcCounterpartyDenom,
+		IbcCounterpartyChainId:   msg.IbcCounterpartyChainId,
+		CommitEnabled:            msg.CommitEnabled,
+		WithdrawEnabled:          msg.WithdrawEnabled,
+	}, []string{})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgAddEntryResponse{}, nil
 }

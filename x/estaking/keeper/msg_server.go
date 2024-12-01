@@ -3,6 +3,15 @@ package keeper
 import (
 	"context"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerEstakingTypes "github.com/elys-network/elys/indexer/txs/estaking"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
@@ -30,6 +39,15 @@ func (k msgServer) UpdateParams(goCtx context.Context, req *types.MsgUpdateParam
 	ctx := sdk.UnwrapSDKContext(goCtx)
 	k.SetParams(ctx, req.Params)
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerEstakingTypes.MsgUpdateParams{
+		Authority: req.Authority,
+		Params:    req.Params,
+	}, []string{})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgUpdateParamsResponse{}, nil
 }
 
@@ -45,6 +63,24 @@ func (k msgServer) WithdrawReward(goCtx context.Context, msg *types.MsgWithdrawR
 	if err != nil {
 		return nil, err
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	tokens := make([]indexerTypes.Token, len(amount))
+	for i, coin := range amount {
+		tokens[i] = indexerTypes.Token{
+			Amount: coin.Amount.String(),
+			Denom:  coin.Denom,
+		}
+	}
+
+	indexer.QueueTransaction(ctx, indexerEstakingTypes.MsgWithdrawReward{
+		DelegatorAddress: msg.DelegatorAddress,
+		ValidatorAddress: msg.ValidatorAddress,
+		Amount:           tokens,
+	}, []string{})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	ctx.EventManager().EmitEvents(sdk.Events{
 		sdk.NewEvent(
@@ -96,6 +132,24 @@ func (k msgServer) WithdrawElysStakingRewards(goCtx context.Context, msg *types.
 	if err != nil {
 		return nil, err
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	tokens := make([]indexerTypes.Token, len(rewards))
+	for i, coin := range rewards {
+		tokens[i] = indexerTypes.Token{
+			Amount: coin.Amount.String(),
+			Denom:  coin.Denom,
+		}
+	}
+
+	indexer.QueueTransaction(ctx, indexerEstakingTypes.MsgWithdrawElysStakingRewards{
+		DelegatorAddress: msg.DelegatorAddress,
+		Amount:           tokens,
+	}, []string{})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgWithdrawElysStakingRewardsResponse{Amount: rewards}, nil
 }
 
@@ -134,5 +188,23 @@ func (k Keeper) WithdrawAllRewards(goCtx context.Context, msg *types.MsgWithdraw
 	if err != nil {
 		return nil, err
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	tokens := make([]indexerTypes.Token, len(rewards))
+	for i, coin := range rewards {
+		tokens[i] = indexerTypes.Token{
+			Amount: coin.Amount.String(),
+			Denom:  coin.Denom,
+		}
+	}
+
+	indexer.QueueTransaction(ctx, indexerEstakingTypes.MsgWithdrawAllRewards{
+		DelegatorAddress: msg.DelegatorAddress,
+		Amount:           tokens,
+	}, []string{})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgWithdrawAllRewardsResponse{Amount: rewards}, nil
 }

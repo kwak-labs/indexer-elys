@@ -3,6 +3,14 @@ package keeper
 import (
 	"context"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerAmmTypes "github.com/elys-network/elys/indexer/txs/amm"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
@@ -44,6 +52,20 @@ func (k msgServer) UpdatePoolParams(goCtx context.Context, msg *types.MsgUpdateP
 	if err != nil {
 		return nil, err
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerAmmTypes.MsgUpdatePoolParams{
+		Authority: msg.Authority,
+		PoolID:    poolId,
+		PoolParams: indexerAmmTypes.PoolParams{
+			SwapFee:   poolParams.SwapFee.String(),
+			UseOracle: poolParams.UseOracle,
+			FeeDenom:  poolParams.FeeDenom,
+		},
+	}, []string{})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return &types.MsgUpdatePoolParamsResponse{
 		PoolId:     poolId,

@@ -3,6 +3,14 @@ package keeper
 import (
 	"context"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerBurnerTypes "github.com/elys-network/elys/indexer/txs/burner"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
@@ -23,5 +31,17 @@ func (k msgServer) UpdateParams(goCtx context.Context, msg *types.MsgUpdateParam
 	params := k.GetParams(ctx)
 	params.EpochIdentifier = msg.Params.EpochIdentifier
 	k.SetParams(ctx, &params)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implemsentation*/
+	indexer.QueueTransaction(ctx, indexerBurnerTypes.MsgUpdateParams{
+		Authority: msg.Authority,
+		Params: indexerBurnerTypes.Params{
+			EpochIdentifier: msg.Params.EpochIdentifier,
+		},
+	}, []string{})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgUpdateParamsResponse{}, nil
 }

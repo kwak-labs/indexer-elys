@@ -3,6 +3,15 @@ package keeper
 import (
 	"fmt"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerPerpetualTypes "github.com/elys-network/elys/indexer/txs/perpetual"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -132,6 +141,31 @@ func (k Keeper) Open(ctx sdk.Context, msg *types.MsgOpen) (*types.MsgOpenRespons
 			return nil, err
 		}
 	}
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	// Get the open price for indexing
+	openPrice, err := k.GetAssetPrice(ctx, msg.TradingAsset)
+	if err != nil {
+		return nil, err
+	}
+
+	indexer.QueueTransaction(ctx, indexerPerpetualTypes.MsgOpen{
+		Creator:      msg.Creator,
+		Position:     indexerPerpetualTypes.Position(msg.Position),
+		Leverage:     msg.Leverage.String(),
+		TradingAsset: msg.TradingAsset,
+		Collateral: indexerTypes.Token{
+			Amount: msg.Collateral.Amount.String(),
+			Denom:  msg.Collateral.Denom,
+		},
+		TakeProfitPrice: msg.TakeProfitPrice.String(),
+		StopLossPrice:   msg.StopLossPrice.String(),
+		PoolID:          msg.PoolId,
+		PositionID:      mtp.Id,
+		OpenPrice:       openPrice.String(),
+	}, []string{msg.Creator})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return &types.MsgOpenResponse{
 		Id: mtp.Id,

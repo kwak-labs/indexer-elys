@@ -4,6 +4,14 @@ import (
 	"context"
 	"strings"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerAssetProfileTypes "github.com/elys-network/elys/indexer/txs/assetprofile"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	"cosmossdk.io/errors"
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -67,6 +75,32 @@ func (k msgServer) UpdateEntry(goCtx context.Context, msg *types.MsgUpdateEntry)
 
 	k.SetEntry(ctx, entry)
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerAssetProfileTypes.MsgUpdateEntry{
+		Authority:                msg.Authority,
+		BaseDenom:                msg.BaseDenom,
+		Decimals:                 msg.Decimals,
+		Denom:                    msg.Denom,
+		Path:                     msg.Path,
+		IbcChannelId:             msg.IbcChannelId,
+		IbcCounterpartyChannelId: msg.IbcCounterpartyChannelId,
+		DisplayName:              msg.DisplayName,
+		DisplaySymbol:            msg.DisplaySymbol,
+		Network:                  msg.Network,
+		Address:                  msg.Address,
+		ExternalSymbol:           msg.ExternalSymbol,
+		TransferLimit:            msg.TransferLimit,
+		Permissions:              msg.Permissions,
+		UnitDenom:                msg.UnitDenom,
+		IbcCounterpartyDenom:     msg.IbcCounterpartyDenom,
+		IbcCounterpartyChainId:   msg.IbcCounterpartyChainId,
+		CommitEnabled:            msg.CommitEnabled,
+		WithdrawEnabled:          msg.WithdrawEnabled,
+	}, []string{})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgUpdateEntryResponse{}, nil
 }
 
@@ -89,6 +123,15 @@ func (k msgServer) DeleteEntry(goCtx context.Context, msg *types.MsgDeleteEntry)
 	}
 
 	k.RemoveEntry(ctx, msg.BaseDenom)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerAssetProfileTypes.MsgDeleteEntry{
+		Authority: msg.Authority,
+		BaseDenom: msg.BaseDenom,
+	}, []string{})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return &types.MsgDeleteEntryResponse{}, nil
 }

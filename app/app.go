@@ -7,6 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node imports*/
+
+	/* End of kwak-indexer node imports*/
+	/* *************************************************************************** */
+
 	"cosmossdk.io/client/v2/autocli"
 	"cosmossdk.io/core/appmodule"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -15,6 +21,7 @@ import (
 	authcodec "github.com/cosmos/cosmos-sdk/x/auth/codec"
 	"github.com/cosmos/gogoproto/proto"
 	"github.com/elys-network/elys/app/keepers"
+	"github.com/elys-network/elys/indexer"
 	"github.com/spf13/cast"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -117,6 +124,14 @@ type ElysApp struct {
 	// sm is the simulation manager
 	sm           *module.SimulationManager
 	configurator module.Configurator
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+
+	indexerInitialized bool
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 }
 
 // New returns a reference to an initialized blockchain app
@@ -336,6 +351,19 @@ func (app *ElysApp) Name() string { return app.BaseApp.Name() }
 
 // PreBlocker application updates every pre block
 func (app *ElysApp) PreBlocker(ctx sdk.Context, _ *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
+	if !app.indexerInitialized {
+		/* *************************************************************************** */
+		/* Start of kwak-indexer node implementation*/
+
+		fmt.Println("Indexer Starting")
+		indexer.Init(app)
+		app.indexerInitialized = true
+		fmt.Println("Indexer Started")
+
+		/* End of kwak-indexer node implementation*/
+		/* *************************************************************************** */
+	}
+
 	return app.mm.PreBlock(ctx)
 }
 

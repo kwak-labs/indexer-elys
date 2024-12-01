@@ -1,0 +1,138 @@
+package indexer
+
+import (
+	"encoding/json"
+	"fmt"
+	"reflect"
+
+	"github.com/elys-network/elys/indexer/txs/amm"
+	"github.com/elys-network/elys/indexer/txs/assetprofile"
+	"github.com/elys-network/elys/indexer/txs/burner"
+	"github.com/elys-network/elys/indexer/txs/commitments"
+	"github.com/elys-network/elys/indexer/txs/estaking"
+	"github.com/elys-network/elys/indexer/txs/leveragelp"
+	"github.com/elys-network/elys/indexer/txs/masterchef"
+	"github.com/elys-network/elys/indexer/txs/oracle"
+	"github.com/elys-network/elys/indexer/txs/parameter"
+	"github.com/elys-network/elys/indexer/txs/perpetual"
+	"github.com/elys-network/elys/indexer/txs/stablestake"
+	"github.com/elys-network/elys/indexer/txs/tradeshield"
+	"github.com/elys-network/elys/indexer/types"
+)
+
+var txRegistry = make(map[string]reflect.Type)
+
+func init() {
+	// Commitments
+	RegisterTxType("/elys.commitment.MsgStake", reflect.TypeOf(commitments.MsgStake{}))
+	RegisterTxType("/elys.commitment.MsgUnstake", reflect.TypeOf(commitments.MsgUnstake{}))
+	RegisterTxType("/elys.commitment.MsgVestLiquid", reflect.TypeOf(commitments.MsgVestLiquid{}))
+	RegisterTxType("/elys.commitment.MsgCancelVest", reflect.TypeOf(commitments.MsgCancelVest{}))
+	RegisterTxType("/elys.commitment.MsgClaimVesting", reflect.TypeOf(commitments.MsgClaimVesting{}))
+	RegisterTxType("/elys.commitment.MsgCommitClaimedRewards", reflect.TypeOf(commitments.MsgCommitClaimedRewards{}))
+	RegisterTxType("/elys.commitment.MsgUncommitTokens", reflect.TypeOf(commitments.MsgUncommitTokens{}))
+
+	// AMM
+	RegisterTxType("/elys.amm.MsgCreatePool", reflect.TypeOf(amm.MsgCreatePool{}))
+	RegisterTxType("/elys.amm.MsgJoinPool", reflect.TypeOf(amm.MsgJoinPool{}))
+	RegisterTxType("/elys.amm.MsgExitPool", reflect.TypeOf(amm.MsgExitPool{}))
+	RegisterTxType("/elys.amm.MsgSwapExactAmountIn", reflect.TypeOf(amm.MsgSwapExactAmountIn{}))
+	RegisterTxType("/elys.amm.MsgSwapExactAmountOut", reflect.TypeOf(amm.MsgSwapExactAmountOut{}))
+	RegisterTxType("/elys.amm.MsgSwapByDenom", reflect.TypeOf(amm.MsgSwapByDenom{}))
+	RegisterTxType("/elys.amm.MsgUpdateParams", reflect.TypeOf(amm.MsgUpdateParams{}))
+	RegisterTxType("/elys.amm.MsgUpdatePoolParams", reflect.TypeOf(amm.MsgUpdatePoolParams{}))
+	RegisterTxType("/elys.amm.MsgFeedMultipleExternalLiquidity", reflect.TypeOf(amm.MsgFeedMultipleExternalLiquidity{}))
+
+	// Perpetual
+	RegisterTxType("/elys.perpetual.MsgOpen", reflect.TypeOf(perpetual.MsgOpen{}))
+	RegisterTxType("/elys.perpetual.MsgClose", reflect.TypeOf(perpetual.MsgClose{}))
+	RegisterTxType("/elys.perpetual.MsgUpdateStopLoss", reflect.TypeOf(perpetual.MsgUpdateStopLoss{}))
+	RegisterTxType("/elys.perpetual.MsgClosePositions", reflect.TypeOf(perpetual.MsgClosePositions{}))
+
+	// LeverageLP
+	RegisterTxType("/elys.leveragelp.MsgOpen", reflect.TypeOf(leveragelp.MsgOpen{}))
+	RegisterTxType("/elys.leveragelp.MsgClose", reflect.TypeOf(leveragelp.MsgClose{}))
+	RegisterTxType("/elys.leveragelp.MsgClosePosition", reflect.TypeOf(leveragelp.MsgClosePositions{}))
+	RegisterTxType("/elys.leveragelp.MsgClaimRewards", reflect.TypeOf(leveragelp.MsgClaimRewards{}))
+	RegisterTxType("/elys.leveragelp.MsgUpdateStopLoss", reflect.TypeOf(leveragelp.MsgUpdateStopLoss{}))
+	RegisterTxType("/elys.leveragelp.MsgAddPool", reflect.TypeOf(leveragelp.MsgAddPool{}))
+
+	// Oracle
+	RegisterTxType("/elys.oracle.MsgFeedPrice", reflect.TypeOf(oracle.MsgFeedPrice{}))
+	RegisterTxType("/elys.oracle.MsgFeedMultiplePrices", reflect.TypeOf(oracle.MsgFeedMultiplePrices{}))
+	RegisterTxType("/elys.oracle.MsgSetPriceFeeder", reflect.TypeOf(oracle.MsgSetPriceFeeder{}))
+	RegisterTxType("/elys.oracle.MsgDeletePriceFeeder", reflect.TypeOf(oracle.MsgDeletePriceFeeder{}))
+	RegisterTxType("/elys.oracle.MsgCreateAssetInfo", reflect.TypeOf(oracle.MsgCreateAssetInfo{}))
+
+	// Parameter
+	RegisterTxType("/elys.parameter.MsgUpdateMinCommission", reflect.TypeOf(parameter.MsgUpdateMinCommission{}))
+	RegisterTxType("/elys.parameter.MsgUpdateMaxVotingPower", reflect.TypeOf(parameter.MsgUpdateMaxVotingPower{}))
+	RegisterTxType("/elys.parameter.MsgUpdateMinSelfDelegation", reflect.TypeOf(parameter.MsgUpdateMinSelfDelegation{}))
+	RegisterTxType("/elys.parameter.MsgUpdateTotalBlocksPerYear", reflect.TypeOf(parameter.MsgUpdateTotalBlocksPerYear{}))
+	RegisterTxType("/elys.parameter.MsgUpdateRewardsDataLifetime", reflect.TypeOf(parameter.MsgUpdateRewardsDataLifetime{}))
+
+	// StableStake
+	RegisterTxType("/elys.stablestake.MsgBond", reflect.TypeOf(stablestake.MsgBond{}))
+	RegisterTxType("/elys.stablestake.MsgUnbond", reflect.TypeOf(stablestake.MsgUnbond{}))
+	RegisterTxType("/elys.stablestake.MsgUpdateParams", reflect.TypeOf(stablestake.MsgUpdateParams{}))
+
+	// TradeShield
+	RegisterTxType("/elys.tradeshield.MsgCreateSpotOrder", reflect.TypeOf(tradeshield.MsgCreateSpotOrder{}))
+	RegisterTxType("/elys.tradeshield.MsgCancelSpotOrders", reflect.TypeOf(tradeshield.MsgCancelSpotOrders{}))
+	RegisterTxType("/elys.tradeshield.MsgCreatePerpetualOrder", reflect.TypeOf(tradeshield.MsgCreatePerpetualOpenOrder{}))
+	RegisterTxType("/elys.tradeshield.MsgCancelPerpetualOrder", reflect.TypeOf(tradeshield.MsgCancelPerpetualOrder{}))
+	RegisterTxType("/elys.tradeshield.MsgCancelPerpetualOrders", reflect.TypeOf(tradeshield.MsgCancelPerpetualOrders{}))
+	RegisterTxType("/elys.tradeshield.MsgUpdatePerpetualOrder", reflect.TypeOf(tradeshield.MsgUpdatePerpetualOrder{}))
+	RegisterTxType("/elys.tradeshield.MsgExecuteOrders", reflect.TypeOf(tradeshield.MsgExecuteOrders{}))
+	RegisterTxType("/elys.tradeshield.MsgUpdateParams", reflect.TypeOf(tradeshield.MsgUpdateParams{}))
+
+	// Asset Profile
+	RegisterTxType("/elys.assetprofile.MsgAddEntry", reflect.TypeOf(assetprofile.MsgAddEntry{}))
+	RegisterTxType("/elys.assetprofile.MsgUpdateEntry", reflect.TypeOf(assetprofile.MsgUpdateEntry{}))
+	RegisterTxType("/elys.assetprofile.MsgDeleteEntry", reflect.TypeOf(assetprofile.MsgDeleteEntry{}))
+
+	// Masterchef
+	RegisterTxType("/elys.masterchef.MsgClaimRewards", reflect.TypeOf(masterchef.MsgClaimRewards{}))
+
+	// EStaking
+	RegisterTxType("/elys.estaking.MsgUpdateParams", reflect.TypeOf(estaking.MsgUpdateParams{}))
+	RegisterTxType("/elys.estaking.MsgWithdrawAllRewards", reflect.TypeOf(estaking.MsgWithdrawAllRewards{}))
+
+	// Burner
+	RegisterTxType("/elys.burner.MsgUpdateParams", reflect.TypeOf(burner.MsgUpdateParams{}))
+
+	// Automatic events
+	RegisterTxType("/elys.burner.MsgUpdateParams", reflect.TypeOf(burner.MsgUpdateParams{}))
+
+}
+
+func RegisterTxType(txType string, dataType reflect.Type) {
+	txRegistry[txType] = dataType
+}
+
+func ParseTransaction(tx types.GenericTransaction) (string, types.Processor, error) {
+	txType := tx.BaseTransaction.TxType
+	fmt.Println(tx.BaseTransaction)
+	dataType, ok := txRegistry[txType]
+	if !ok {
+		return "", nil, fmt.Errorf("unknown transaction type: %s", txType)
+	}
+
+	dataValue := reflect.New(dataType).Interface()
+	dataBytes, err := json.Marshal(tx.Data)
+	if err != nil {
+		return "", nil, fmt.Errorf("error marshaling data: %w", err)
+	}
+
+	err = json.Unmarshal(dataBytes, dataValue)
+	if err != nil {
+		return "", nil, fmt.Errorf("error unmarshaling to %s: %w", dataType.Name(), err)
+	}
+
+	processor, ok := reflect.ValueOf(dataValue).Elem().Interface().(types.Processor)
+	if !ok {
+		return "", nil, fmt.Errorf("type %s does not implement Processor", dataType.Name())
+	}
+
+	return txType, processor, nil
+}

@@ -5,12 +5,27 @@ import (
 	"fmt"
 	"strings"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerTradeshieldTypes "github.com/elys-network/elys/indexer/txs/tradeshield"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/elys-network/elys/x/tradeshield/types"
 )
 
 func (k msgServer) ExecuteOrders(goCtx context.Context, msg *types.MsgExecuteOrders) (*types.MsgExecuteOrdersResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	spotExecutionLogs := []indexerTradeshieldTypes.OrderExecutionLog{}
+	perpExecutionLogs := []indexerTradeshieldTypes.OrderExecutionLog{}
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	spotLog := []string{}
 	// loop through the spot orders and execute them
@@ -26,30 +41,40 @@ func (k msgServer) ExecuteOrders(goCtx context.Context, msg *types.MsgExecuteOrd
 		// dispatch based on the order type
 		switch spotOrder.OrderType {
 		case types.SpotOrderType_STOPLOSS:
-			// execute the stop loss order
 			err = k.ExecuteStopLossOrder(ctx, spotOrder)
 		case types.SpotOrderType_LIMITSELL:
-			// execute the limit sell order
 			err = k.ExecuteLimitSellOrder(ctx, spotOrder)
 		case types.SpotOrderType_LIMITBUY:
-			// execute the limit buy order
 			err = k.ExecuteLimitBuyOrder(ctx, spotOrder)
 		case types.SpotOrderType_MARKETBUY:
-			// execute the market buy order
 			err = k.ExecuteMarketBuyOrder(ctx, spotOrder)
 		}
 
-		// log the error if any
 		if err != nil {
-			// Add log about error or not executed
-			spotLog = append(spotLog, fmt.Sprintf("Spot order Id:%d cannot be executed due to err: %s", spotOrderId, err.Error()))
+			errLog := fmt.Sprintf("Spot order Id:%d cannot be executed due to err: %s", spotOrderId, err.Error())
+			spotLog = append(spotLog, errLog)
+			/* *************************************************************************** */
+			/* Start of kwak-indexer node implementation*/
+			spotExecutionLogs = append(spotExecutionLogs, indexerTradeshieldTypes.OrderExecutionLog{
+				OrderID: spotOrderId,
+				Error:   err.Error(),
+			})
+			/* End of kwak-indexer node implementation*/
+			/* *************************************************************************** */
+		} else {
+			/* *************************************************************************** */
+			/* Start of kwak-indexer node implementation*/
+			spotExecutionLogs = append(spotExecutionLogs, indexerTradeshieldTypes.OrderExecutionLog{
+				OrderID: spotOrderId,
+			})
+			/* End of kwak-indexer node implementation*/
+			/* *************************************************************************** */
 		}
 	}
 
 	perpLog := []string{}
 	// loop through the perpetual orders and execute them
 	for _, perpetualOrderId := range msg.PerpetualOrderIds {
-		// get the perpetual order
 		perpetualOrder, found := k.GetPendingPerpetualOrder(ctx, perpetualOrderId)
 		if !found {
 			return nil, types.ErrPerpetualOrderNotFound
@@ -57,22 +82,30 @@ func (k msgServer) ExecuteOrders(goCtx context.Context, msg *types.MsgExecuteOrd
 
 		var err error
 
-		// dispatch based on the order type
 		switch perpetualOrder.PerpetualOrderType {
 		case types.PerpetualOrderType_LIMITOPEN:
-			// execute the limit open order
 			err = k.ExecuteLimitOpenOrder(ctx, perpetualOrder)
-			// Disable for v1
-			// case types.PerpetualOrderType_LIMITCLOSE:
-			// 	// execute the limit close order
-			// 	err = k.ExecuteLimitCloseOrder(ctx, perpetualOrder)
 		}
 
-		// return the error if any
-		// log the error if any
 		if err != nil {
-			// Add log about error or not executed
-			perpLog = append(perpLog, fmt.Sprintf("Perpetual order Id:%d cannot be executed due to err: %s", perpetualOrderId, err.Error()))
+			errLog := fmt.Sprintf("Perpetual order Id:%d cannot be executed due to err: %s", perpetualOrderId, err.Error())
+			perpLog = append(perpLog, errLog)
+			/* *************************************************************************** */
+			/* Start of kwak-indexer node implementation*/
+			perpExecutionLogs = append(perpExecutionLogs, indexerTradeshieldTypes.OrderExecutionLog{
+				OrderID: perpetualOrderId,
+				Error:   err.Error(),
+			})
+			/* End of kwak-indexer node implementation*/
+			/* *************************************************************************** */
+		} else {
+			/* *************************************************************************** */
+			/* Start of kwak-indexer node implementation*/
+			perpExecutionLogs = append(perpExecutionLogs, indexerTradeshieldTypes.OrderExecutionLog{
+				OrderID: perpetualOrderId,
+			})
+			/* End of kwak-indexer node implementation*/
+			/* *************************************************************************** */
 		}
 	}
 
@@ -80,6 +113,18 @@ func (k msgServer) ExecuteOrders(goCtx context.Context, msg *types.MsgExecuteOrd
 		sdk.NewAttribute("spot_orders", strings.Join(spotLog, "\n")),
 		sdk.NewAttribute("perpetual_orders", strings.Join(perpLog, "\n")),
 	))
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerTradeshieldTypes.MsgExecuteOrders{
+		Creator:           msg.Creator,
+		SpotOrderIds:      msg.SpotOrderIds,
+		PerpetualOrderIds: msg.PerpetualOrderIds,
+		SpotLogs:          spotExecutionLogs,
+		PerpetualLogs:     perpExecutionLogs,
+	}, []string{msg.Creator})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return &types.MsgExecuteOrdersResponse{}, nil
 }

@@ -2,6 +2,16 @@ package keeper
 
 import (
 	"context"
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerStableStakeTypes "github.com/elys-network/elys/indexer/txs/stablestake"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/elys-network/elys/x/stablestake/types"
 )
@@ -44,6 +54,21 @@ func (k msgServer) Unbond(goCtx context.Context, msg *types.MsgUnbond) (*types.M
 
 	params.TotalValue = params.TotalValue.Sub(redemptionAmount)
 	k.SetParams(ctx, params)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerStableStakeTypes.MsgUnbond{
+		Creator:        msg.Creator,
+		Amount:         msg.Amount.String(),
+		ShareDenom:     shareDenom,
+		RedemptionRate: redemptionRate.String(),
+		RedemptionToken: indexerTypes.Token{
+			Amount: redemptionAmount.String(),
+			Denom:  depositDenom,
+		},
+	}, []string{msg.Creator})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	if k.hooks != nil {
 		err = k.hooks.AfterUnbond(ctx, creator, msg.Amount)

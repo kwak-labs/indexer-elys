@@ -5,6 +5,15 @@ import (
 	"fmt"
 	"strconv"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerPerpetualTypes "github.com/elys-network/elys/indexer/txs/perpetual"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/elys-network/elys/x/perpetual/types"
@@ -90,6 +99,23 @@ func (k msgServer) UpdateTakeProfitPrice(goCtx context.Context, msg *types.MsgUp
 		sdk.NewAttribute("take_profit_price", mtp.TakeProfitPrice.String()),
 	)
 	ctx.EventManager().EmitEvent(event)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerPerpetualTypes.MsgUpdateTakeProfitPrice{
+		Creator:  msg.Creator,
+		ID:       msg.Id,
+		Price:    msg.Price.String(),
+		Position: mtp.Position.String(),
+		Collateral: indexerTypes.Token{
+			Amount: mtp.Collateral.String(),
+			Denom:  mtp.CollateralAsset,
+		},
+		OpenPrice:    mtp.OpenPrice.String(),
+		CurrentPrice: tradingAssetPrice.String(),
+	}, []string{msg.Creator})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return &types.MsgUpdateTakeProfitPriceResponse{}, nil
 }

@@ -3,6 +3,15 @@ package keeper
 import (
 	"context"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerCommitmentsTypes "github.com/elys-network/elys/indexer/txs/commitments"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -82,6 +91,19 @@ func (k Keeper) UncommitTokens(ctx sdk.Context, addr sdk.AccAddress, denom strin
 			return err
 		}
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerCommitmentsTypes.MsgUncommitTokens{
+		Creator: addr.String(),
+		Token: indexerTypes.Token{
+			Amount: amount.String(),
+			Denom:  denom,
+		},
+		IsLiquidation: isLiquidation,
+	}, []string{})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	// Emit event
 	ctx.EventManager().EmitEvent(
