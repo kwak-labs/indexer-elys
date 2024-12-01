@@ -1,4 +1,3 @@
-// Package indexer provides functionality for indexing blockchain transactions and events
 package indexer
 
 import (
@@ -34,6 +33,7 @@ type queueItem struct {
 }
 
 // eventItem represents an event to be processed by the event worker
+// An event are things like liquidations that happen automatically
 type eventItem struct {
 	ctx       sdk.Context
 	eventType string
@@ -87,37 +87,35 @@ func Init(a AppI) {
 
 // initDatabase initializes the LMDB database and performs test queries
 func initDatabase() {
-	db, err := NewLMDBManager("./lmdb-data", &totalIndexLength)
+	database, err := NewLMDBManager("./lmdb-data", &totalIndexLength)
 	if err != nil {
 		panic(err)
 	}
-	database = db
 
 	// Test query to verify database functionality
-	data, err := db.GetRecordsByAddress("elys1093h5gs0wz3rrm78zdrfzul2mdh654d95mhnj9")
+	data, err := database.GetRecordsByAddress("elys1093h5gs0wz3rrm78zdrfzul2mdh654d95mhnj9")
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-	} else {
-		fmt.Printf("Retrieved %d transactions\n", len(data))
-		for _, tx := range data {
-			transactionType, TransactionData, err := ParseRecord(tx)
+		panic(fmt.Errorf("database test query failed: %v", err))
+	}
 
-			if err != nil {
-				fmt.Println(err)
+	fmt.Printf("Retrieved %d transactions\n", len(data))
+	for _, tx := range data {
+		transactionType, TransactionData, err := ParseRecord(tx)
+		if err != nil {
+			panic(fmt.Errorf("failed to parse record: %v", err))
+		}
+
+		// Handle specific transaction types
+		switch transactionType {
+		case "/elys.commitment.MsgStake":
+			if stakeData, ok := TransactionData.(CommitmentTypes.MsgStake); ok {
+				fmt.Printf("Stake amount: %s %s\n", stakeData.Token.Amount, stakeData.Token.Denom)
 			}
-
-			// Handle specific transaction types
-			switch transactionType {
-			case "/elys.commitment.MsgStake":
-				if stakeData, ok := TransactionData.(CommitmentTypes.MsgStake); ok {
-					fmt.Printf("Stake amount: %s %s\n", stakeData.Token.Amount, stakeData.Token.Denom)
-				}
-			case "/elys.estaking.MsgWithdrawAllRewards":
-				if rewardData, ok := TransactionData.(EstakingTypes.MsgWithdrawAllRewards); ok {
-					fmt.Printf("Validators: %v\n", rewardData.Validators)
-					for _, token := range rewardData.Amount {
-						fmt.Printf("Reward Amount: %s %s\n", token.Amount, token.Denom)
-					}
+		case "/elys.estaking.MsgWithdrawAllRewards":
+			if rewardData, ok := TransactionData.(EstakingTypes.MsgWithdrawAllRewards); ok {
+				fmt.Printf("Validators: %v\n", rewardData.Validators)
+				for _, token := range rewardData.Amount {
+					fmt.Printf("Reward Amount: %s %s\n", token.Amount, token.Denom)
 				}
 			}
 		}
@@ -196,12 +194,10 @@ func processEventInternal(event eventItem) {
 		BlockHeight:       event.ctx.BlockHeight(),
 	}
 
-	res, err := event.proc.Process(database, baseEvent)
+	_, err := event.proc.Process(database, baseEvent)
 	if err != nil {
-		fmt.Println(err)
+		panic(fmt.Errorf("failed to process event: %v", err))
 	}
-
-	fmt.Println(res)
 }
 
 // processTransactionInternal handles the processing of a single transaction
@@ -209,8 +205,7 @@ func processTransactionInternal(ctx sdk.Context, proc indexerTypes.Processor, in
 	// Get transaction bytes and calculate hash
 	txBytes := ctx.TxBytes()
 	if len(txBytes) == 0 {
-		fmt.Println("No transaction bytes found in context")
-		return
+		panic("no transaction bytes found in context")
 	}
 
 	txChecksum := sha256.Sum256(txBytes)
@@ -225,8 +220,7 @@ func processTransactionInternal(ctx sdk.Context, proc indexerTypes.Processor, in
 	txConfig := tx.NewTxConfig(codec.NewProtoCodec(app.InterfaceRegistry()), tx.DefaultSignModes)
 	decodedTx, err := txConfig.TxDecoder()(txBytes)
 	if err != nil {
-		fmt.Println(err.Error())
-		return
+		panic(fmt.Errorf("failed to decode transaction: %v", err))
 	}
 
 	msg := decodedTx.GetMsgs()[0]
@@ -239,17 +233,14 @@ func processTransactionInternal(ctx sdk.Context, proc indexerTypes.Processor, in
 		// For non-legacy messages, get signer from tx signers
 		sigTx, ok := decodedTx.(signing.SigVerifiableTx)
 		if !ok {
-			fmt.Println("tx does not implement SigVerifiableTx")
-			return
+			panic("tx does not implement SigVerifiableTx")
 		}
 		signers, err := sigTx.GetSigners()
 		if err != nil {
-			fmt.Println("failed to get signers:", err)
-			return
+			panic(fmt.Errorf("failed to get signers: %v", err))
 		}
 		if len(signers) == 0 {
-			fmt.Println("no signers found")
-			return
+			panic("no signers found")
 		}
 		sender = signers[0]
 	}
@@ -257,15 +248,13 @@ func processTransactionInternal(ctx sdk.Context, proc indexerTypes.Processor, in
 	// Extract fee information
 	feeTx, ok := decodedTx.(sdk.FeeTx)
 	if !ok {
-		fmt.Println("tx is not a sdk.FeeTx")
-		return
+		panic("tx is not a sdk.FeeTx")
 	}
 
 	// Extract memo information
 	memoTx, ok := decodedTx.(sdk.TxWithMemo)
 	if !ok {
-		fmt.Println("tx is not a sdk.TxWithMemo")
-		return
+		panic("tx is not a sdk.TxWithMemo")
 	}
 
 	memo := memoTx.GetMemo()
@@ -298,12 +287,10 @@ func processTransactionInternal(ctx sdk.Context, proc indexerTypes.Processor, in
 	fmt.Println(baseTx)
 
 	// Process the transaction
-	res, err := proc.Process(database, baseTx)
+	_, err = proc.Process(database, baseTx)
 	if err != nil {
-		fmt.Println(err)
+		panic(fmt.Errorf("failed to process transaction: %v", err))
 	}
-
-	fmt.Println(res)
 }
 
 // retryProcessing attempts to reprocess a transaction after a delay
