@@ -1,3 +1,4 @@
+// Package indexer provides functionality for indexing blockchain transactions and events
 package indexer
 
 import (
@@ -16,6 +17,7 @@ import (
 
 	"github.com/cosmos/gogoproto/proto"
 	CommitmentTypes "github.com/elys-network/elys/indexer/txs/commitments"
+	EstakingTypes "github.com/elys-network/elys/indexer/txs/estaking"
 	indexerTypes "github.com/elys-network/elys/indexer/types"
 )
 
@@ -24,12 +26,14 @@ type AppI interface {
 	InterfaceRegistry() types.InterfaceRegistry
 }
 
+// queueItem represents a transaction to be processed by the worker
 type queueItem struct {
 	ctx               sdk.Context
 	proc              indexerTypes.Processor
 	includedAddresses []string
 }
 
+// eventItem represents an event to be processed by the event worker
 type eventItem struct {
 	ctx       sdk.Context
 	eventType string
@@ -37,17 +41,18 @@ type eventItem struct {
 	addresses []string
 }
 
+// Global variables for managing the indexer state
 var (
-	txChan           chan queueItem
-	eventChan        chan eventItem
-	database         *LMDBManager
-	totalIndexLength uint64
-	once             sync.Once
-	workerDone       chan struct{}
-	eventWorkerDone  chan struct{}
-	app              AppI
-	workerReady      sync.WaitGroup
-	dbReady          chan struct{}
+	txChan           chan queueItem // Channel for queuing transactions
+	eventChan        chan eventItem // Channel for queuing events
+	database         *LMDBManager   // Database manager instance
+	totalIndexLength uint64         // Total number of indexed items
+	once             sync.Once      // Ensures Init is called only once
+	workerDone       chan struct{}  // Channel to signal worker completion
+	eventWorkerDone  chan struct{}  // Channel to signal event worker completion
+	app              AppI           // Application interface instance
+	workerReady      sync.WaitGroup // WaitGroup for worker initialization
+	dbReady          chan struct{}  // Channel to signal database readiness
 )
 
 // Init initializes the indexer with a single worker and stores the app interface
@@ -59,11 +64,13 @@ func Init(a AppI) {
 
 		go initDatabase()
 
+		// Initialize channels with buffer sizes
 		txChan = make(chan queueItem, 10000)
 		eventChan = make(chan eventItem, 10000)
 		workerDone = make(chan struct{})
 		eventWorkerDone = make(chan struct{})
 
+		// Start workers after database is ready
 		go func() {
 			<-dbReady // Wait for the database to be ready
 			go worker()
@@ -78,31 +85,40 @@ func Init(a AppI) {
 	})
 }
 
+// initDatabase initializes the LMDB database and performs test queries
 func initDatabase() {
 	db, err := NewLMDBManager("./lmdb-data", &totalIndexLength)
 	if err != nil {
 		panic(err)
 	}
 	database = db
-	data, err := db.GetTxsByAddress("elys1093h5gs0wz3rrm78zdrfzul2mdh654d95mhnj9")
+
+	// Test query to verify database functionality
+	data, err := db.GetRecordsByAddress("elys1093h5gs0wz3rrm78zdrfzul2mdh654d95mhnj9")
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 	} else {
 		fmt.Printf("Retrieved %d transactions\n", len(data))
 		for _, tx := range data {
-			fmt.Println(tx)
-			transactionType, TransactionData, err := ParseTransaction(tx)
+			transactionType, TransactionData, err := ParseRecord(tx)
 
 			if err != nil {
 				fmt.Println(err)
 			}
 
+			// Handle specific transaction types
 			switch transactionType {
 			case "/elys.commitment.MsgStake":
 				if stakeData, ok := TransactionData.(CommitmentTypes.MsgStake); ok {
 					fmt.Printf("Stake amount: %s %s\n", stakeData.Token.Amount, stakeData.Token.Denom)
 				}
-
+			case "/elys.estaking.MsgWithdrawAllRewards":
+				if rewardData, ok := TransactionData.(EstakingTypes.MsgWithdrawAllRewards); ok {
+					fmt.Printf("Validators: %v\n", rewardData.Validators)
+					for _, token := range rewardData.Amount {
+						fmt.Printf("Reward Amount: %s %s\n", token.Amount, token.Denom)
+					}
+				}
 			}
 		}
 	}
@@ -110,7 +126,7 @@ func initDatabase() {
 	close(dbReady) // Signal that the database is ready
 }
 
-// StopIndexer stops the indexer worker
+// StopIndexer gracefully stops the indexer workers
 func StopIndexer() {
 	close(txChan)
 	close(eventChan)
@@ -142,6 +158,7 @@ func QueueTransaction(ctx sdk.Context, proc indexerTypes.Processor, addresses []
 		includedAddresses: addresses,
 	}
 
+	// Try to queue transaction, wait if channel is full
 	select {
 	case txChan <- item:
 		fmt.Println("Processing")
@@ -160,6 +177,7 @@ func QueueEvent(ctx sdk.Context, eventType string, proc indexerTypes.EventProces
 		addresses: addresses,
 	}
 
+	// Try to queue event, wait if channel is full
 	select {
 	case eventChan <- event:
 		fmt.Printf("Processing event: %s\n", eventType)
@@ -169,11 +187,13 @@ func QueueEvent(ctx sdk.Context, eventType string, proc indexerTypes.EventProces
 	}
 }
 
+// processEventInternal handles the processing of a single event
 func processEventInternal(event eventItem) {
 	baseEvent := indexerTypes.BaseEvent{
-		BlockTime:   event.ctx.BlockTime(),
-		EventType:   event.eventType,
-		BlockHeight: event.ctx.BlockHeight(),
+		IncludedAddresses: event.addresses,
+		BlockTime:         event.ctx.BlockTime(),
+		EventType:         event.eventType,
+		BlockHeight:       event.ctx.BlockHeight(),
 	}
 
 	res, err := event.proc.Process(database, baseEvent)
@@ -184,7 +204,9 @@ func processEventInternal(event eventItem) {
 	fmt.Println(res)
 }
 
+// processTransactionInternal handles the processing of a single transaction
 func processTransactionInternal(ctx sdk.Context, proc indexerTypes.Processor, includingAddresses []string) {
+	// Get transaction bytes and calculate hash
 	txBytes := ctx.TxBytes()
 	if len(txBytes) == 0 {
 		fmt.Println("No transaction bytes found in context")
@@ -194,10 +216,12 @@ func processTransactionInternal(ctx sdk.Context, proc indexerTypes.Processor, in
 	txChecksum := sha256.Sum256(txBytes)
 	txHash := hex.EncodeToString(txChecksum[:])
 
+	// Get block information
 	blockHeight := ctx.BlockHeight()
 	blockTime := ctx.BlockTime()
 	gasUsed := ctx.GasMeter().GasConsumed()
 
+	// Decode transaction
 	txConfig := tx.NewTxConfig(codec.NewProtoCodec(app.InterfaceRegistry()), tx.DefaultSignModes)
 	decodedTx, err := txConfig.TxDecoder()(txBytes)
 	if err != nil {
@@ -230,12 +254,14 @@ func processTransactionInternal(ctx sdk.Context, proc indexerTypes.Processor, in
 		sender = signers[0]
 	}
 
+	// Extract fee information
 	feeTx, ok := decodedTx.(sdk.FeeTx)
 	if !ok {
 		fmt.Println("tx is not a sdk.FeeTx")
 		return
 	}
 
+	// Extract memo information
 	memoTx, ok := decodedTx.(sdk.TxWithMemo)
 	if !ok {
 		fmt.Println("tx is not a sdk.TxWithMemo")
@@ -246,6 +272,7 @@ func processTransactionInternal(ctx sdk.Context, proc indexerTypes.Processor, in
 	fees := feeTx.GetFee()
 	gasLimit := feeTx.GetGas()
 
+	// Convert fees to FeeDetail structs
 	var feeDetails []indexerTypes.FeeDetail
 	for _, fee := range fees {
 		feeDetails = append(feeDetails, indexerTypes.FeeDetail{
@@ -254,6 +281,7 @@ func processTransactionInternal(ctx sdk.Context, proc indexerTypes.Processor, in
 		})
 	}
 
+	// Create base transaction
 	baseTx := indexerTypes.BaseTransaction{
 		BlockTime:         blockTime,
 		Author:            sender.String(),
@@ -269,6 +297,7 @@ func processTransactionInternal(ctx sdk.Context, proc indexerTypes.Processor, in
 
 	fmt.Println(baseTx)
 
+	// Process the transaction
 	res, err := proc.Process(database, baseTx)
 	if err != nil {
 		fmt.Println(err)

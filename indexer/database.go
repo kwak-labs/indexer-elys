@@ -1,3 +1,4 @@
+// Package indexer provides functionality for indexing blockchain transactions and events
 package indexer
 
 import (
@@ -11,59 +12,70 @@ import (
 	indexerTypes "github.com/elys-network/elys/indexer/types"
 )
 
-// LMDBManager handles LMDB operations for storing and retrieving transactions
+// LMDBManager handles LMDB operations for storing and retrieving records.
+// It maintains three databases:
+// - recordDB: Stores the actual transaction and event records
+// - addressDB: Maps addresses to record indices for efficient lookups
+// - recordCountDB: Tracks the total number of records in the system
 type LMDBManager struct {
-	env              *lmdb.Env
-	eventDB          lmdb.DBI
-	addressDB        lmdb.DBI
-	eventCountDB     lmdb.DBI
-	path             string
-	totalIndexLength *uint64
+	env              *lmdb.Env // LMDB environment handle
+	recordDB         lmdb.DBI  // Database for storing transaction/event records
+	addressDB        lmdb.DBI  // Database mapping addresses to record indices
+	recordCountDB    lmdb.DBI  // Database tracking total record count
+	path             string    // File system path to the LMDB data files
+	totalIndexLength *uint64   // Pointer to the current total number of records
 }
 
-// NewLMDBManager creates a new LMDB manager
+// NewLMDBManager creates and initializes a new LMDB manager instance.
+// It sets up the database environment, creates necessary subdatabases,
+// and loads or initializes the record count.
 func NewLMDBManager(path string, totalIndexLength *uint64) (*LMDBManager, error) {
-	// Create directory if it doesn't exist
+	// Ensure the database directory exists
 	if err := os.MkdirAll(path, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create directory: %v", err)
 	}
 
-	// Set up LMDB environment
+	// Initialize LMDB environment
 	env, err := lmdb.NewEnv()
 	if err != nil {
 		return nil, err
 	}
 
+	// Configure environment to support 3 named databases
 	if err := env.SetMaxDBs(3); err != nil {
 		return nil, err
 	}
 
-	// Start with 1GB, we'll increase it later if needed
+	// Set initial database size to 1GB
 	if err := env.SetMapSize(1 << 30); err != nil {
 		return nil, err
 	}
 
+	// Open the environment with read-write permissions
 	if err := env.Open(path, 0, 0644); err != nil {
 		return nil, err
 	}
 
 	manager := &LMDBManager{env: env, path: path, totalIndexLength: totalIndexLength}
 
-	// Initialize databases
+	// Initialize the databases within a transaction
 	err = env.Update(func(txn *lmdb.Txn) error {
 		var err error
-		if manager.eventDB, err = txn.OpenDBI("txs", lmdb.Create); err != nil {
+		// Create main record storage database
+		if manager.recordDB, err = txn.OpenDBI("records", lmdb.Create); err != nil {
 			return err
 		}
+		// Create address index database with duplicate key support
 		if manager.addressDB, err = txn.OpenDBI("addresses", lmdb.Create|lmdb.DupSort); err != nil {
 			return err
 		}
-		if manager.eventCountDB, err = txn.OpenDBI("txcount", lmdb.Create); err != nil {
+		// Create record count tracking database
+		if manager.recordCountDB, err = txn.OpenDBI("recordcount", lmdb.Create); err != nil {
 			return err
 		}
 
-		// Get the current transaction count
-		countBytes, err := txn.Get(manager.eventCountDB, []byte("count"))
+		// Load existing record count or initialize to 0
+		countBytes, err := txn.Get(manager.recordCountDB, []byte("count"))
 		if err == nil {
 			*totalIndexLength = binary.LittleEndian.Uint64(countBytes)
 		} else if lmdb.IsNotFound(err) {
@@ -81,21 +93,24 @@ func NewLMDBManager(path string, totalIndexLength *uint64) (*LMDBManager, error)
 	return manager, nil
 }
 
-// CheckAndResizeIfNeeded increases the database size if it's getting full
+// CheckAndResizeIfNeeded monitors database usage and automatically increases
+// the size when available space drops below 20%. It doubles the current size
+// when more space is needed and handles the resize operation gracefully.
 func (m *LMDBManager) CheckAndResizeIfNeeded() error {
 	info, err := m.env.Info()
 	if err != nil {
 		return err
 	}
 
+	// Calculate current space usage
 	usedSpace := uint64(info.LastPNO) * uint64(os.Getpagesize())
 	availableSpace := uint64(info.MapSize) - usedSpace
 
-	// Double the size if less than 20% is available
+	// Resize if less than 20% space remains
 	if availableSpace < uint64(info.MapSize)/5 {
 		newSize := info.MapSize * 2
 		if err := m.env.SetMapSize(newSize); err != nil {
-			// If resizing fails, close and reopen the environment
+			// If direct resize fails, attempt recovery by recreating environment
 			m.env.Close()
 			if env, err := lmdb.NewEnv(); err == nil {
 				if err := env.SetMaxDBs(3); err == nil {
@@ -115,94 +130,83 @@ func (m *LMDBManager) CheckAndResizeIfNeeded() error {
 	return nil
 }
 
-// ProcessNewTx adds a new transaction to the database
+// ProcessNewTx wraps a transaction in a GenericRecord and processes it.
+// It provides a convenient way to index individual transactions.
 func (m *LMDBManager) ProcessNewTx(tx indexerTypes.GenericTransaction, address string) error {
-	if err := m.CheckAndResizeIfNeeded(); err != nil {
-		return err
+	record := indexerTypes.GenericRecord{
+		Transaction: &tx,
 	}
-
-	return m.env.Update(func(txn *lmdb.Txn) error {
-		// Increment the total index length
-
-		fmt.Printf("Before increment: %d\n", *m.totalIndexLength)
-		*m.totalIndexLength++
-		fmt.Printf("After increment: %d\n", *m.totalIndexLength)
-		count := *m.totalIndexLength
-
-		// Store the new count in the database
-		countBytes := make([]byte, 8)
-		binary.BigEndian.PutUint64(countBytes, count)
-		if err := txn.Put(m.eventCountDB, []byte("count"), countBytes, 0); err != nil {
-			return fmt.Errorf("error storing new count: %v", err)
-		}
-
-		fmt.Printf("New Count: %d\n", count)
-
-		// Store the transaction
-		txBytes, err := json.Marshal(tx)
-		if err != nil {
-			return err
-		}
-
-		indexBytes := make([]byte, 8)
-		binary.BigEndian.PutUint64(indexBytes, count)
-		if err := txn.Put(m.eventDB, indexBytes, txBytes, 0); err != nil {
-			return err
-		}
-
-		// Update the address index for the main address
-		if err := txn.Put(m.addressDB, []byte(address), indexBytes, 0); err != nil {
-			return err
-		}
-
-		// Update the address index for all included addresses
-		for _, includedAddress := range tx.BaseTransaction.IncludedAddresses {
-			if err := txn.Put(m.addressDB, []byte(includedAddress), indexBytes, 0); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
+	return m.ProcessRecord(record, address)
 }
 
+// ProcessNewEvent wraps an event in a GenericRecord and processes it.
+// It provides a convenient way to index individual events.
 func (m *LMDBManager) ProcessNewEvent(event indexerTypes.GenericEvent, address string) error {
+	record := indexerTypes.GenericRecord{
+		Event: &event,
+	}
+	return m.ProcessRecord(record, address)
+}
+
+// ProcessRecord stores a new record (transaction or event) in the database.
+// It updates the record count, stores the record data, and maintains address indices
+// for both the main address and any included addresses.
+// Included addresses are like recievers, so if someone recieved 100 tokens they would be Included.
+func (m *LMDBManager) ProcessRecord(record indexerTypes.GenericRecord, address string) error {
+	// Ensure database has enough space
 	if err := m.CheckAndResizeIfNeeded(); err != nil {
 		return err
 	}
 
 	return m.env.Update(func(txn *lmdb.Txn) error {
-		// Increment the total index length
+		// Increment and store new record count
 		*m.totalIndexLength++
 		count := *m.totalIndexLength
 
-		// Store the new count
 		countBytes := make([]byte, 8)
 		binary.BigEndian.PutUint64(countBytes, count)
-		if err := txn.Put(m.eventCountDB, []byte("count"), countBytes, 0); err != nil {
+		if err := txn.Put(m.recordCountDB, []byte("count"), countBytes, 0); err != nil {
 			return fmt.Errorf("error storing new count: %v", err)
 		}
 
-		// Store the event
-		eventBytes, err := json.Marshal(event)
+		// Serialize and store the record
+		recordBytes, err := json.Marshal(record)
 		if err != nil {
 			return err
 		}
 
 		indexBytes := make([]byte, 8)
 		binary.BigEndian.PutUint64(indexBytes, count)
-		if err := txn.Put(m.eventDB, indexBytes, eventBytes, 0); err != nil {
+		if err := txn.Put(m.recordDB, indexBytes, recordBytes, 0); err != nil {
 			return err
 		}
 
-		// Update the address index for the main address
-		if err := txn.Put(m.addressDB, []byte(address), indexBytes, 0); err != nil {
-			return err
+		// Get included addresses based on record type
+		var includedAddresses []string
+		if record.IsTransaction() {
+			includedAddresses = record.Transaction.BaseTransaction.IncludedAddresses
+		} else if record.IsEvent() {
+			includedAddresses = record.Event.BaseEvent.IncludedAddresses
 		}
 
-		// Update the address index for all included addresses
-		for _, includedAddress := range event.BaseEvent.IncludedAddresses {
-			if err := txn.Put(m.addressDB, []byte(includedAddress), indexBytes, 0); err != nil {
+		// Create a map to track unique addresses
+		uniqueAddresses := make(map[string]string)
+
+		// Add main address if not empty
+		if address != "" {
+			uniqueAddresses[address] = address
+		}
+
+		// Add included addresses if not empty and not already present
+		for _, addr := range includedAddresses {
+			if addr != "" {
+				uniqueAddresses[addr] = addr
+			}
+		}
+
+		// Push the index to each address's store
+		for _, addr := range uniqueAddresses {
+			if err := txn.Put(m.addressDB, []byte(addr), indexBytes, 0); err != nil {
 				return err
 			}
 		}
@@ -211,29 +215,32 @@ func (m *LMDBManager) ProcessNewEvent(event indexerTypes.GenericEvent, address s
 	})
 }
 
-// GetTxCount returns the total number of transactions
-func (m *LMDBManager) GetTxCount() uint64 {
+// GetRecordCount returns the current total number of records in the database
+func (m *LMDBManager) GetRecordCount() uint64 {
 	return *m.totalIndexLength
 }
 
-// GetTxByIndex retrieves a transaction by its index
-func (m *LMDBManager) GetTxByIndex(index uint64) (indexerTypes.GenericTransaction, error) {
-	var tx indexerTypes.GenericTransaction
+// GetRecordByIndex retrieves a specific record by its index number.
+// Returns the record and any error encountered during retrieval.
+func (m *LMDBManager) GetRecordByIndex(index uint64) (indexerTypes.GenericRecord, error) {
+	var record indexerTypes.GenericRecord
 	err := m.env.View(func(txn *lmdb.Txn) error {
 		indexBytes := make([]byte, 8)
 		binary.BigEndian.PutUint64(indexBytes, index)
-		txBytes, err := txn.Get(m.eventDB, indexBytes)
+		recordBytes, err := txn.Get(m.recordDB, indexBytes)
 		if err != nil {
 			return err
 		}
-		return json.Unmarshal(txBytes, &tx)
+		return json.Unmarshal(recordBytes, &record)
 	})
-	return tx, err
+	return record, err
 }
 
-// GetTxsByAddress retrieves all transactions for a given address
-func (m *LMDBManager) GetTxsByAddress(address string) ([]indexerTypes.GenericTransaction, error) {
-	var txs []indexerTypes.GenericTransaction
+// GetRecordsByAddress retrieves all records associated with a given address.
+// This includes both records where the address is the main address and where
+// it appears in the included addresses list.
+func (m *LMDBManager) GetRecordsByAddress(address string) ([]indexerTypes.GenericRecord, error) {
+	var records []indexerTypes.GenericRecord
 	err := m.env.View(func(txn *lmdb.Txn) error {
 		cursor, err := txn.OpenCursor(m.addressDB)
 		if err != nil {
@@ -241,24 +248,27 @@ func (m *LMDBManager) GetTxsByAddress(address string) ([]indexerTypes.GenericTra
 		}
 		defer cursor.Close()
 
+		// Position cursor at first record for this address
 		_, value, err := cursor.Get([]byte(address), nil, lmdb.SetKey)
 		if lmdb.IsNotFound(err) {
-			return nil // No transactions found for this address
+			return nil // No records found for this address
 		} else if err != nil {
 			return fmt.Errorf("error in initial cursor.Get: %v", err)
 		}
 
+		// Iterate through all records for this address
 		for {
 			index := binary.BigEndian.Uint64(value)
-			tx, err := m.GetTxByIndex(index)
+			record, err := m.GetRecordByIndex(index)
 			if err != nil {
-				return fmt.Errorf("error getting transaction by index %d: %v", index, err)
+				return fmt.Errorf("error getting record by index %d: %v", index, err)
 			}
-			txs = append(txs, tx)
+			records = append(records, record)
 
+			// Move to next record with same address
 			_, value, err = cursor.Get(nil, nil, lmdb.NextDup)
 			if lmdb.IsNotFound(err) {
-				// Reached the end of the transactions
+				// Reached the end of the records
 				break
 			} else if err != nil {
 				return fmt.Errorf("error in cursor.Get for NextDup: %v", err)
@@ -271,10 +281,10 @@ func (m *LMDBManager) GetTxsByAddress(address string) ([]indexerTypes.GenericTra
 		return nil, err
 	}
 
-	return txs, nil
+	return records, nil
 }
 
-// Close shuts down the LMDB environment
+// Close properly shuts down the LMDB environment and releases resources
 func (m *LMDBManager) Close() error {
 	m.env.Close()
 	return nil

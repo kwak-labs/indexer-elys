@@ -100,6 +100,11 @@ func (k msgServer) WithdrawElysStakingRewards(goCtx context.Context, msg *types.
 	var amount sdk.Coins
 	var err error = nil
 	var rewards = sdk.Coins{}
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	var validatorAddresses []string
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 	iterateError := k.Keeper.Keeper.IterateDelegations(ctx, delAddr, func(index int64, del stakingtypes.DelegationI) (stop bool) {
 		valAddr, errB := sdk.ValAddressFromBech32(del.GetValidatorAddr())
 		if errB != nil {
@@ -111,6 +116,11 @@ func (k msgServer) WithdrawElysStakingRewards(goCtx context.Context, msg *types.
 			return true
 		}
 		rewards = rewards.Add(amount...)
+		/* *************************************************************************** */
+		/* Start of kwak-indexer node implementation*/
+		validatorAddresses = append(validatorAddresses, valAddr.String())
+		/* End of kwak-indexer node implementation*/
+		/* *************************************************************************** */
 
 		ctx.EventManager().EmitEvents(sdk.Events{
 			sdk.NewEvent(
@@ -145,8 +155,9 @@ func (k msgServer) WithdrawElysStakingRewards(goCtx context.Context, msg *types.
 
 	indexer.QueueTransaction(ctx, indexerEstakingTypes.MsgWithdrawElysStakingRewards{
 		DelegatorAddress: msg.DelegatorAddress,
+		Validators:       validatorAddresses,
 		Amount:           tokens,
-	}, []string{})
+	}, []string{msg.DelegatorAddress})
 	/* End of kwak-indexer node implementation*/
 	/* *************************************************************************** */
 
@@ -159,6 +170,12 @@ func (k Keeper) WithdrawAllRewards(goCtx context.Context, msg *types.MsgWithdraw
 	var amount sdk.Coins
 	var err error = nil
 	var rewards = sdk.Coins{}
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	var validatorAddresses []string
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	err = k.IterateDelegations(ctx, delAddr, func(index int64, del stakingtypes.DelegationI) (stop bool) {
 		valAddr, errB := sdk.ValAddressFromBech32(del.GetValidatorAddr())
 		if errB != nil {
@@ -170,6 +187,12 @@ func (k Keeper) WithdrawAllRewards(goCtx context.Context, msg *types.MsgWithdraw
 			return true
 		}
 		rewards = rewards.Add(amount...)
+
+		/* *************************************************************************** */
+		/* Start of kwak-indexer node implementation*/
+		validatorAddresses = append(validatorAddresses, valAddr.String())
+		/* End of kwak-indexer node implementation*/
+		/* *************************************************************************** */
 
 		ctx.EventManager().EmitEvents(sdk.Events{
 			sdk.NewEvent(
@@ -201,8 +224,9 @@ func (k Keeper) WithdrawAllRewards(goCtx context.Context, msg *types.MsgWithdraw
 
 	indexer.QueueTransaction(ctx, indexerEstakingTypes.MsgWithdrawAllRewards{
 		DelegatorAddress: msg.DelegatorAddress,
+		Validators:       validatorAddresses,
 		Amount:           tokens,
-	}, []string{})
+	}, []string{msg.DelegatorAddress})
 	/* End of kwak-indexer node implementation*/
 	/* *************************************************************************** */
 

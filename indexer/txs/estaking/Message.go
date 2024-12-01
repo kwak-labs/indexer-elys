@@ -36,6 +36,7 @@ func (m MsgWithdrawReward) Process(database types.DatabaseManager, transaction t
 // WithdrawElysStakingRewards Message
 type MsgWithdrawElysStakingRewards struct {
 	DelegatorAddress string        `json:"delegator_address"`
+	Validators       []string      `json:"validators"`
 	Amount           []types.Token `json:"amount"`
 }
 
@@ -50,6 +51,7 @@ func (m MsgWithdrawElysStakingRewards) Process(database types.DatabaseManager, t
 // WithdrawAllRewards Message
 type MsgWithdrawAllRewards struct {
 	DelegatorAddress string        `json:"delegator_address"`
+	Validators       []string      `json:"validators"`
 	Amount           []types.Token `json:"amount"`
 }
 

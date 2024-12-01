@@ -18,9 +18,11 @@ import (
 	"github.com/elys-network/elys/indexer/txs/stablestake"
 	"github.com/elys-network/elys/indexer/txs/tradeshield"
 	"github.com/elys-network/elys/indexer/types"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
 )
 
 var txRegistry = make(map[string]reflect.Type)
+var eventRegistry = make(map[string]reflect.Type)
 
 func init() {
 	// Commitments
@@ -97,40 +99,36 @@ func init() {
 	// EStaking
 	RegisterTxType("/elys.estaking.MsgUpdateParams", reflect.TypeOf(estaking.MsgUpdateParams{}))
 	RegisterTxType("/elys.estaking.MsgWithdrawAllRewards", reflect.TypeOf(estaking.MsgWithdrawAllRewards{}))
+	RegisterTxType("/elys.estaking.MsgWithdrawElysStakingRewards", reflect.TypeOf(estaking.MsgWithdrawElysStakingRewards{}))
+	RegisterTxType("/elys.estaking.MsgWithdrawReward", reflect.TypeOf(estaking.MsgWithdrawReward{}))
 
 	// Burner
 	RegisterTxType("/elys.burner.MsgUpdateParams", reflect.TypeOf(burner.MsgUpdateParams{}))
 
-	// Automatic events - These are events that are not triggered specifically by a TX
-	// Some examples include things that happen on a per block basis.
-	// But, say a TX has muttiple calls, they might end up as Event calls because its hard to link them back to one TX
-
-	// LeverageLP Events
-	RegisterTxType("/elys-event/leveragelp/liquidation", reflect.TypeOf(leveragelp.LiquidationEvent{}))
-	RegisterTxType("/elys-event/leveragelp/stop-loss", reflect.TypeOf(leveragelp.StopLossEvent{}))
-
-	// Masterchef Events
-	RegisterTxType("/elys-event/masterchef/claim-rewards", reflect.TypeOf(masterchef.ClaimRewardsEvent{}))
-
-	// Perpetual Events
-	RegisterTxType("/elys-event/perpetual/liquidation", reflect.TypeOf(perpetual.LiquidationEvent{}))
-	RegisterTxType("/elys-event/perpetual/stop-loss", reflect.TypeOf(perpetual.StopLossEvent{}))
-	RegisterTxType("/elys-event/perpetual/take-profit", reflect.TypeOf(perpetual.TakeProfitEvent{}))
-
-	// TradeShield Events
-	RegisterTxType("/elys-event/tradeshield/stop-loss", reflect.TypeOf(tradeshield.StopLossExecutionEvent{}))
-	RegisterTxType("/elys-event/tradeshield/limit-sell", reflect.TypeOf(tradeshield.LimitSellExecutionEvent{}))
-	RegisterTxType("/elys-event/tradeshield/limit-buy", reflect.TypeOf(tradeshield.LimitOrderExecutionEvent{}))
-	RegisterTxType("/elys-event/tradeshield/market-buy", reflect.TypeOf(tradeshield.MarketOrderExecutionEvent{}))
+	// Register Events
+	RegisterEventType("/elys-event/leveragelp/liquidation", reflect.TypeOf(leveragelp.LiquidationEvent{}))
+	RegisterEventType("/elys-event/leveragelp/stop-loss", reflect.TypeOf(leveragelp.StopLossEvent{}))
+	RegisterEventType("/elys-event/masterchef/claim-rewards", reflect.TypeOf(masterchef.ClaimRewardsEvent{}))
+	RegisterEventType("/elys-event/perpetual/liquidation", reflect.TypeOf(perpetual.LiquidationEvent{}))
+	RegisterEventType("/elys-event/perpetual/stop-loss", reflect.TypeOf(perpetual.StopLossEvent{}))
+	RegisterEventType("/elys-event/perpetual/take-profit", reflect.TypeOf(perpetual.TakeProfitEvent{}))
+	RegisterEventType("/elys-event/tradeshield/stop-loss", reflect.TypeOf(tradeshield.StopLossExecutionEvent{}))
+	RegisterEventType("/elys-event/tradeshield/limit-sell", reflect.TypeOf(tradeshield.LimitSellExecutionEvent{}))
+	RegisterEventType("/elys-event/tradeshield/limit-buy", reflect.TypeOf(tradeshield.LimitOrderExecutionEvent{}))
+	RegisterEventType("/elys-event/tradeshield/market-buy", reflect.TypeOf(tradeshield.MarketOrderExecutionEvent{}))
 }
 
 func RegisterTxType(txType string, dataType reflect.Type) {
 	txRegistry[txType] = dataType
 }
 
+func RegisterEventType(eventType string, dataType reflect.Type) {
+	eventRegistry[eventType] = dataType
+}
+
 func ParseTransaction(tx types.GenericTransaction) (string, types.Processor, error) {
 	txType := tx.BaseTransaction.TxType
-	fmt.Println(tx.BaseTransaction)
+
 	dataType, ok := txRegistry[txType]
 	if !ok {
 		return "", nil, fmt.Errorf("unknown transaction type: %s", txType)
@@ -153,4 +151,40 @@ func ParseTransaction(tx types.GenericTransaction) (string, types.Processor, err
 	}
 
 	return txType, processor, nil
+}
+
+func ParseEvent(event types.GenericEvent) (string, types.EventProcessor, error) {
+	eventType := event.BaseEvent.EventType
+
+	dataType, ok := eventRegistry[eventType]
+	if !ok {
+		return "", nil, fmt.Errorf("unknown event type: %s", eventType)
+	}
+
+	dataValue := reflect.New(dataType).Interface()
+	dataBytes, err := json.Marshal(event.Data)
+	if err != nil {
+		return "", nil, fmt.Errorf("error marshaling event data: %w", err)
+	}
+
+	err = json.Unmarshal(dataBytes, dataValue)
+	if err != nil {
+		return "", nil, fmt.Errorf("error unmarshaling to %s: %w", dataType.Name(), err)
+	}
+
+	processor, ok := reflect.ValueOf(dataValue).Elem().Interface().(types.EventProcessor)
+	if !ok {
+		return "", nil, fmt.Errorf("type %s does not implement EventProcessor", dataType.Name())
+	}
+
+	return eventType, processor, nil
+}
+
+func ParseRecord(record indexerTypes.GenericRecord) (string, interface{}, error) {
+	if record.IsTransaction() {
+		return ParseTransaction(*record.Transaction)
+	} else if record.IsEvent() {
+		return ParseEvent(*record.Event)
+	}
+	return "", nil, fmt.Errorf("record contains neither transaction nor event")
 }

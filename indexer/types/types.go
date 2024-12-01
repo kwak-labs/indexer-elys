@@ -46,6 +46,11 @@ type GenericEvent struct {
 	Data      interface{} `json:"data"`
 }
 
+type GenericRecord struct {
+	Transaction *GenericTransaction `json:"transaction,omitempty"`
+	Event       *GenericEvent       `json:"event,omitempty"`
+}
+
 type Response struct{}
 
 type DatabaseManager interface {
@@ -59,4 +64,12 @@ type Processor interface {
 
 type EventProcessor interface {
 	Process(DatabaseManager, BaseEvent) (Response, error)
+}
+
+func (r GenericRecord) IsTransaction() bool {
+	return r.Transaction != nil
+}
+
+func (r GenericRecord) IsEvent() bool {
+	return r.Event != nil
 }
