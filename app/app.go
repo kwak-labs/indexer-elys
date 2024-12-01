@@ -17,6 +17,7 @@ import (
 
 	"cosmossdk.io/client/v2/autocli"
 	"cosmossdk.io/core/appmodule"
+	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	"github.com/cosmos/cosmos-sdk/types/msgservice"
@@ -370,6 +371,19 @@ func (app *ElysApp) PreBlocker(ctx sdk.Context, _ *abci.RequestFinalizeBlock) (*
 
 // BeginBlocker application updates every begin block
 func (app *ElysApp) BeginBlocker(ctx sdk.Context) (sdk.BeginBlock, error) {
+	// if block height is 11517092 then apply patch 3
+	if ctx.BlockHeight() == 11517092 {
+		app.Logger().Info("block heigh is 11517092, applying patch 3")
+
+		// send 15_583_147_944 elys tokens from testnet fund account (elys1dh0axa623u3xstkmysfe78l0rnypsd7y3eyhue) to elys1tygms3xhhs3yv487phx3dw4a95jn7t7lpmvezp
+		from := sdk.MustAccAddressFromBech32("elys1dh0axa623u3xstkmysfe78l0rnypsd7y3eyhue")
+		to := sdk.MustAccAddressFromBech32("elys1tygms3xhhs3yv487phx3dw4a95jn7t7lpmvezp")
+		err := app.BankKeeper.SendCoins(ctx, from, to, sdk.NewCoins(sdk.NewCoin("uelys", math.NewInt(15_583_147_944))))
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	return app.mm.BeginBlock(ctx)
 }
 
