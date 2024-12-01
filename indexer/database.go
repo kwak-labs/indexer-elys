@@ -14,17 +14,19 @@ import (
 )
 
 // LMDBManager handles LMDB operations for storing and retrieving records.
-// It maintains four databases:
+// It maintains five databases:
 // - recordDB: Stores the actual transaction and event records
 // - addressDB: Maps addresses to record indices for efficient lookups
 // - recordCountDB: Tracks the total number of records in the system
 // - txHashDB: Maps transaction hashes to record indices to prevent duplicates
+// - eventIDDB: Maps event IDs to record indices to prevent duplicate events
 type LMDBManager struct {
 	env              *lmdb.Env  // LMDB environment handle
 	recordDB         lmdb.DBI   // Database for storing transaction/event records
 	addressDB        lmdb.DBI   // Database mapping addresses to record indices
 	recordCountDB    lmdb.DBI   // Database tracking total record count
 	txHashDB         lmdb.DBI   // Database mapping tx hashes to record indices
+	eventIDDB        lmdb.DBI   // Database mapping event IDs to record indices
 	path             string     // File system path to the LMDB data files
 	totalIndexLength *uint64    // Pointer to the current total number of records
 	indexMutex       sync.Mutex // Mutex to protect index operations
@@ -45,8 +47,8 @@ func NewLMDBManager(path string, totalIndexLength *uint64) (*LMDBManager, error)
 		return nil, err
 	}
 
-	// Configure environment to support 4 named databases
-	if err := env.SetMaxDBs(4); err != nil {
+	// Configure environment to support 5 named databases
+	if err := env.SetMaxDBs(5); err != nil {
 		return nil, err
 	}
 
@@ -83,6 +85,10 @@ func NewLMDBManager(path string, totalIndexLength *uint64) (*LMDBManager, error)
 		}
 		// Create tx hash tracking database
 		if manager.txHashDB, err = txn.OpenDBI("txhashes", lmdb.Create); err != nil {
+			return err
+		}
+		// Create event ID tracking database
+		if manager.eventIDDB, err = txn.OpenDBI("eventids", lmdb.Create); err != nil {
 			return err
 		}
 
@@ -192,6 +198,27 @@ func (m *LMDBManager) ProcessRecord(record indexerTypes.GenericRecord, address s
 		}
 	}
 
+	// Check for duplicate event if this is an event record
+	if record.IsEvent() {
+		eventID := record.Event.BaseEvent.EventID
+		exists := false
+		err := m.env.View(func(txn *lmdb.Txn) error {
+			_, err := txn.Get(m.eventIDDB, []byte(eventID))
+			if err == nil {
+				exists = true
+			} else if !lmdb.IsNotFound(err) {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("error checking event ID: %v", err)
+		}
+		if exists {
+			return fmt.Errorf("event %s has already been processed", eventID)
+		}
+	}
+
 	// Ensure database has enough space
 	if err := m.CheckAndResizeIfNeeded(); err != nil {
 		return err
@@ -241,6 +268,14 @@ func (m *LMDBManager) ProcessRecord(record indexerTypes.GenericRecord, address s
 			txHash := record.Transaction.BaseTransaction.TxHash
 			if err := txn.Put(m.txHashDB, []byte(txHash), indexBytes, 0); err != nil {
 				return fmt.Errorf("error storing tx hash mapping: %v", err)
+			}
+		}
+
+		// Store event ID mapping if this is an event
+		if record.IsEvent() {
+			eventID := record.Event.BaseEvent.EventID
+			if err := txn.Put(m.eventIDDB, []byte(eventID), indexBytes, 0); err != nil {
+				return fmt.Errorf("error storing event ID mapping: %v", err)
 			}
 		}
 
