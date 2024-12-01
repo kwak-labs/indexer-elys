@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 
@@ -13,17 +14,20 @@ import (
 )
 
 // LMDBManager handles LMDB operations for storing and retrieving records.
-// It maintains three databases:
+// It maintains four databases:
 // - recordDB: Stores the actual transaction and event records
 // - addressDB: Maps addresses to record indices for efficient lookups
 // - recordCountDB: Tracks the total number of records in the system
+// - txHashDB: Maps transaction hashes to record indices to prevent duplicates
 type LMDBManager struct {
-	env              *lmdb.Env // LMDB environment handle
-	recordDB         lmdb.DBI  // Database for storing transaction/event records
-	addressDB        lmdb.DBI  // Database mapping addresses to record indices
-	recordCountDB    lmdb.DBI  // Database tracking total record count
-	path             string    // File system path to the LMDB data files
-	totalIndexLength *uint64   // Pointer to the current total number of records
+	env              *lmdb.Env  // LMDB environment handle
+	recordDB         lmdb.DBI   // Database for storing transaction/event records
+	addressDB        lmdb.DBI   // Database mapping addresses to record indices
+	recordCountDB    lmdb.DBI   // Database tracking total record count
+	txHashDB         lmdb.DBI   // Database mapping tx hashes to record indices
+	path             string     // File system path to the LMDB data files
+	totalIndexLength *uint64    // Pointer to the current total number of records
+	indexMutex       sync.Mutex // Mutex to protect index operations
 }
 
 // NewLMDBManager creates and initializes a new LMDB manager instance.
@@ -41,8 +45,8 @@ func NewLMDBManager(path string, totalIndexLength *uint64) (*LMDBManager, error)
 		return nil, err
 	}
 
-	// Configure environment to support 3 named databases
-	if err := env.SetMaxDBs(3); err != nil {
+	// Configure environment to support 4 named databases
+	if err := env.SetMaxDBs(4); err != nil {
 		return nil, err
 	}
 
@@ -56,7 +60,11 @@ func NewLMDBManager(path string, totalIndexLength *uint64) (*LMDBManager, error)
 		return nil, err
 	}
 
-	manager := &LMDBManager{env: env, path: path, totalIndexLength: totalIndexLength}
+	manager := &LMDBManager{
+		env:              env,
+		path:             path,
+		totalIndexLength: totalIndexLength,
+	}
 
 	// Initialize the databases within a transaction
 	err = env.Update(func(txn *lmdb.Txn) error {
@@ -73,6 +81,10 @@ func NewLMDBManager(path string, totalIndexLength *uint64) (*LMDBManager, error)
 		if manager.recordCountDB, err = txn.OpenDBI("recordcount", lmdb.Create); err != nil {
 			return err
 		}
+		// Create tx hash tracking database
+		if manager.txHashDB, err = txn.OpenDBI("txhashes", lmdb.Create); err != nil {
+			return err
+		}
 
 		// Load existing record count or initialize to 0
 		countBytes, err := txn.Get(manager.recordCountDB, []byte("count"))
@@ -80,6 +92,12 @@ func NewLMDBManager(path string, totalIndexLength *uint64) (*LMDBManager, error)
 			*totalIndexLength = binary.LittleEndian.Uint64(countBytes)
 		} else if lmdb.IsNotFound(err) {
 			*totalIndexLength = 0
+			// Initialize count to 0 in database
+			initBytes := make([]byte, 8)
+			binary.LittleEndian.PutUint64(initBytes, 0)
+			if err := txn.Put(manager.recordCountDB, []byte("count"), initBytes, 0); err != nil {
+				return fmt.Errorf("failed to initialize count: %v", err)
+			}
 		} else {
 			return err
 		}
@@ -113,7 +131,7 @@ func (m *LMDBManager) CheckAndResizeIfNeeded() error {
 			// If direct resize fails, attempt recovery by recreating environment
 			m.env.Close()
 			if env, err := lmdb.NewEnv(); err == nil {
-				if err := env.SetMaxDBs(3); err == nil {
+				if err := env.SetMaxDBs(4); err == nil {
 					if err := env.SetMapSize(newSize); err == nil {
 						if err := env.Open(m.path, 0, 0644); err == nil {
 							m.env = env
@@ -153,19 +171,56 @@ func (m *LMDBManager) ProcessNewEvent(event indexerTypes.GenericEvent, address s
 // for both the main address and any included addresses.
 // Included addresses are like recievers, so if someone recieved 100 tokens they would be Included.
 func (m *LMDBManager) ProcessRecord(record indexerTypes.GenericRecord, address string) error {
+	// Check for duplicate transaction if this is a transaction record
+	if record.IsTransaction() {
+		txHash := record.Transaction.BaseTransaction.TxHash
+		exists := false
+		err := m.env.View(func(txn *lmdb.Txn) error {
+			_, err := txn.Get(m.txHashDB, []byte(txHash))
+			if err == nil {
+				exists = true
+			} else if !lmdb.IsNotFound(err) {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("error checking tx hash: %v", err)
+		}
+		if exists {
+			return fmt.Errorf("transaction %s has already been processed", txHash)
+		}
+	}
+
 	// Ensure database has enough space
 	if err := m.CheckAndResizeIfNeeded(); err != nil {
 		return err
 	}
 
-	return m.env.Update(func(txn *lmdb.Txn) error {
-		// Increment and store new record count
-		*m.totalIndexLength++
-		count := *m.totalIndexLength
+	// Lock index operations
+	m.indexMutex.Lock()
+	defer m.indexMutex.Unlock()
 
-		countBytes := make([]byte, 8)
-		binary.BigEndian.PutUint64(countBytes, count)
-		if err := txn.Put(m.recordCountDB, []byte("count"), countBytes, 0); err != nil {
+	return m.env.Update(func(txn *lmdb.Txn) error {
+		// Get current count from database to ensure consistency
+		countBytes, err := txn.Get(m.recordCountDB, []byte("count"))
+		if err != nil && !lmdb.IsNotFound(err) {
+			return fmt.Errorf("error reading count: %v", err)
+		}
+
+		var count uint64
+		if err == nil {
+			count = binary.LittleEndian.Uint64(countBytes)
+		}
+
+		// Increment count
+		count++
+		*m.totalIndexLength = count
+
+		// Store new count
+		newCountBytes := make([]byte, 8)
+		binary.LittleEndian.PutUint64(newCountBytes, count)
+		if err := txn.Put(m.recordCountDB, []byte("count"), newCountBytes, 0); err != nil {
 			return fmt.Errorf("error storing new count: %v", err)
 		}
 
@@ -179,6 +234,14 @@ func (m *LMDBManager) ProcessRecord(record indexerTypes.GenericRecord, address s
 		binary.BigEndian.PutUint64(indexBytes, count)
 		if err := txn.Put(m.recordDB, indexBytes, recordBytes, 0); err != nil {
 			return err
+		}
+
+		// Store tx hash mapping if this is a transaction
+		if record.IsTransaction() {
+			txHash := record.Transaction.BaseTransaction.TxHash
+			if err := txn.Put(m.txHashDB, []byte(txHash), indexBytes, 0); err != nil {
+				return fmt.Errorf("error storing tx hash mapping: %v", err)
+			}
 		}
 
 		// Get included addresses based on record type

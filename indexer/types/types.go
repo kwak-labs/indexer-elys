@@ -29,6 +29,7 @@ type BaseTransaction struct {
 }
 
 type BaseEvent struct {
+	EventID           string    // This is a unique ID generated for this indexer to know if it processed an event alreadyEvent
 	BlockTime         time.Time `json:"block_time"`
 	Author            string    `json:"author"`
 	IncludedAddresses []string  `json:"included_addresses"`

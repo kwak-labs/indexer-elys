@@ -3,6 +3,7 @@ package keeper
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -179,6 +180,22 @@ func (k Keeper) ClaimRewards(ctx sdk.Context, sender sdk.AccAddress, poolIds []u
 
 	/* *************************************************************************** */
 	/* Start of kwak-indexer node implementation*/
+	// Create unique event ID using:
+	// - Block height
+	// - Block time (unix nano)
+	// - Sender address
+	// - Pool IDs (sorted and joined)
+	// - Event Type
+	sort.Slice(poolIds, func(i, j int) bool { return poolIds[i] < poolIds[j] })
+	poolIDsStr := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(poolIds)), "-"), "[]")
+	eventID := fmt.Sprintf("%d-%d-%s-%s-%s",
+		ctx.BlockHeight(),
+		ctx.BlockTime().UnixNano(),
+		sender.String(),
+		poolIDsStr,
+		"/elys-event/masterchef/claim-rewards",
+	)
+
 	// Convert coins to indexer token type
 	rewardTokens := make([]indexerTypes.Token, len(coins))
 	for i, coin := range coins {
@@ -196,12 +213,13 @@ func (k Keeper) ClaimRewards(ctx sdk.Context, sender sdk.AccAddress, poolIds []u
 	}
 
 	// Queue the event
+
 	indexer.QueueEvent(ctx, "/elys-event/masterchef/claim-rewards", indexerMasterchefTypes.ClaimRewardsEvent{
 		Sender:      sender.String(),
 		Recipient:   recipient.String(),
 		PoolIDs:     poolIDsUint,
 		RewardCoins: rewardTokens,
-	}, []string{recipient.String()})
+	}, []string{recipient.String()}, eventID)
 	/* End of kwak-indexer node implementation*/
 	/* *************************************************************************** */
 

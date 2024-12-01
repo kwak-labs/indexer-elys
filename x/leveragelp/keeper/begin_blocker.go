@@ -111,6 +111,8 @@ func (k Keeper) CheckAndLiquidateUnhealthyPosition(ctx sdk.Context, position *ty
 
 	/* *************************************************************************** */
 	/* Start of kwak-indexer node implementation*/
+	eventID := fmt.Sprintf("%d-%d-%s", ctx.BlockHeight(), position.Id, "/elys-event/leveragelp/liquidation")
+
 	initialValue := math.LegacyNewDecFromInt(position.Collateral.Amount)
 	finalValue := math.LegacyNewDecFromInt(repayAmount).Sub(math.LegacyNewDecFromInt(position.Liabilities))
 	profitLoss, profitLossPerc := calculateProfitLoss(initialValue, finalValue)
@@ -130,7 +132,7 @@ func (k Keeper) CheckAndLiquidateUnhealthyPosition(ctx sdk.Context, position *ty
 		FinalValue:     finalValue.String(),
 		ProfitLoss:     profitLoss.String(),
 		ProfitLossPerc: profitLossPerc.String(),
-	}, []string{position.Address})
+	}, []string{position.Address}, eventID)
 	/* End of kwak-indexer node implementation*/
 	/* *************************************************************************** */
 
@@ -179,6 +181,8 @@ func (k Keeper) CheckAndCloseAtStopLoss(ctx sdk.Context, position *types.Positio
 
 	/* *************************************************************************** */
 	/* Start of kwak-indexer node implementation*/
+	eventID := fmt.Sprintf("%d-%d-%s", ctx.BlockHeight(), position.Id, "/elys-event/leveragelp/stop-loss")
+
 	initialValue := math.LegacyNewDecFromInt(position.Collateral.Amount)
 	finalValue := math.LegacyNewDecFromInt(repayAmount).Sub(math.LegacyNewDecFromInt(position.Liabilities))
 	profitLoss, profitLossPerc := calculateProfitLoss(initialValue, finalValue)
@@ -201,7 +205,7 @@ func (k Keeper) CheckAndCloseAtStopLoss(ctx sdk.Context, position *types.Positio
 		ProfitLoss:      profitLoss.String(),
 		ProfitLossPerc:  profitLossPerc.String(),
 		RemainingAmount: finalValue.String(),
-	}, []string{position.Address})
+	}, []string{position.Address}, eventID)
 	/* End of kwak-indexer node implementation*/
 	/* *************************************************************************** */
 

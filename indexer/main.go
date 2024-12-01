@@ -3,6 +3,7 @@ package indexer
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"sync"
@@ -39,6 +40,7 @@ type eventItem struct {
 	eventType string
 	proc      indexerTypes.EventProcessor
 	addresses []string
+	id        string
 }
 
 // Global variables for managing the indexer state
@@ -87,10 +89,40 @@ func Init(a AppI) {
 
 // initDatabase initializes the LMDB database and performs test queries
 func initDatabase() {
-	database, err := NewLMDBManager("./lmdb-data", &totalIndexLength)
+	var err error
+	database, err = NewLMDBManager("./lmdb-data", &totalIndexLength)
 	if err != nil {
 		panic(err)
 	}
+
+	// Decode every data
+	count := database.GetRecordCount()
+	fmt.Printf("\n=== Decoding %d records ===\n", count)
+
+	for i := uint64(1); i <= count; i++ {
+		record, err := database.GetRecordByIndex(i)
+		if err != nil {
+			fmt.Printf("Error getting record %d: %v\n", i, err)
+			continue
+		}
+
+		txType, data, err := ParseRecord(record)
+		if err != nil {
+			fmt.Printf("Error parsing record %d: %v\n", i, err)
+			continue
+		}
+
+		// Convert to JSON and format like console.log
+		jsonBytes, err := json.MarshalIndent(data, "", "  ")
+		if err != nil {
+			fmt.Printf("Error marshaling data for record %d: %v\n", i, err)
+			continue
+		}
+
+		fmt.Printf("\nRecord #%d - Type: %s\n%s\n", i, txType, string(jsonBytes))
+	}
+
+	fmt.Println("\n=== Finished decoding all records ===")
 
 	// Test query to verify database functionality
 	data, err := database.GetRecordsByAddress("elys1093h5gs0wz3rrm78zdrfzul2mdh654d95mhnj9")
@@ -167,12 +199,13 @@ func QueueTransaction(ctx sdk.Context, proc indexerTypes.Processor, addresses []
 }
 
 // QueueEvent sends background events to the event worker
-func QueueEvent(ctx sdk.Context, eventType string, proc indexerTypes.EventProcessor, addresses []string) {
+func QueueEvent(ctx sdk.Context, eventType string, proc indexerTypes.EventProcessor, addresses []string, id string) {
 	event := eventItem{
 		ctx:       ctx,
 		eventType: eventType,
 		proc:      proc,
 		addresses: addresses,
+		id:        id,
 	}
 
 	// Try to queue event, wait if channel is full
@@ -188,6 +221,7 @@ func QueueEvent(ctx sdk.Context, eventType string, proc indexerTypes.EventProces
 // processEventInternal handles the processing of a single event
 func processEventInternal(event eventItem) {
 	baseEvent := indexerTypes.BaseEvent{
+		EventID:           event.id,
 		IncludedAddresses: event.addresses,
 		BlockTime:         event.ctx.BlockTime(),
 		EventType:         event.eventType,
@@ -289,7 +323,7 @@ func processTransactionInternal(ctx sdk.Context, proc indexerTypes.Processor, in
 	// Process the transaction
 	_, err = proc.Process(database, baseTx)
 	if err != nil {
-		panic(fmt.Errorf("failed to process transaction: %v", err))
+		fmt.Printf("failed to process transaction: %v", err)
 	}
 }
 
