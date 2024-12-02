@@ -79,7 +79,7 @@ func (k msgServer) SwapByDenom(goCtx context.Context, msg *types.MsgSwapByDenom)
 		SpotPrice: response.SpotPrice.String(),
 		SwapFee:   response.SwapFee.String(),
 		Discount:  response.Discount.String(),
-		AmountOut: indexerTypes.Token{
+		TokenOut: indexerTypes.Token{
 			Amount: response.Amount.Amount.String(),
 			Denom:  response.Amount.Denom,
 		},

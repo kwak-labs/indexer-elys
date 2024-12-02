@@ -31,7 +31,7 @@ type MsgSwapByDenom struct {
 	SpotPrice string               `json:"spot_price"`
 	SwapFee   string               `json:"swap_fee"`
 	Discount  string               `json:"discount"`
-	AmountOut types.Token          `json:"amount_out"`
+	TokenOut  types.Token          `json:"token_out"`
 }
 
 func (m MsgSwapByDenom) Process(database types.DatabaseManager, transaction types.BaseTransaction) (types.Response, error) {

@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+	"strconv"
 
 	"cosmossdk.io/math"
 
@@ -9,6 +10,7 @@ import (
 	/* Start of kwak-indexer node implementation*/
 	indexer "github.com/elys-network/elys/indexer"
 	indexerTokenomicsTypes "github.com/elys-network/elys/indexer/txs/tokenomics"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
 
 	/* End of kwak-indexer node implementation*/
 	/* *************************************************************************** */
@@ -158,8 +160,48 @@ func (k msgServer) ClaimAirdrop(goCtx context.Context, msg *types.MsgClaimAirdro
 
 	/* *************************************************************************** */
 	/* Start of kwak-indexer node implementation*/
+	// Convert committed tokens to indexer format
+	indexerCommittedTokens := make([]*indexerTokenomicsTypes.CommittedTokens, len(commitments.CommittedTokens))
+	for i, ct := range commitments.CommittedTokens {
+		lockups := make([]indexerTokenomicsTypes.Lockup, len(ct.Lockups))
+		for j, l := range ct.Lockups {
+			lockups[j] = indexerTokenomicsTypes.Lockup{
+				Amount:          l.Amount.String(),
+				UnlockTimestamp: l.UnlockTimestamp,
+			}
+		}
+		indexerCommittedTokens[i] = &indexerTokenomicsTypes.CommittedTokens{
+			Denom:   ct.Denom,
+			Amount:  ct.Amount.String(),
+			Lockups: lockups,
+		}
+	}
+
+	// Convert vesting tokens to indexer format
+	indexerVestingTokens := make([]*indexerTokenomicsTypes.VestingTokens, len(commitments.VestingTokens))
+	for i, vt := range commitments.VestingTokens {
+		indexerVestingTokens[i] = &indexerTokenomicsTypes.VestingTokens{
+			Denom:                vt.Denom,
+			TotalAmount:          vt.TotalAmount.String(),
+			ClaimedAmount:        vt.ClaimedAmount.String(),
+			NumBlocks:            vt.NumBlocks,
+			StartBlock:           vt.StartBlock,
+			VestStartedTimestamp: vt.VestStartedTimestamp,
+		}
+	}
+
 	indexer.QueueTransaction(ctx, indexerTokenomicsTypes.MsgClaimAirdrop{
 		Sender: msg.Sender,
+		AmountClaimed: indexerTypes.Token{
+			Amount: strconv.FormatUint(airdrop.Amount, 10),
+			Denom:  ptypes.Eden,
+		},
+		CommittedTokens: indexerCommittedTokens,
+		CommitsClaimed: indexerTypes.Token{
+			Amount: commitments.Claimed.AmountOf(ptypes.Eden).String(),
+			Denom:  ptypes.Eden,
+		},
+		VestingTokens: indexerVestingTokens,
 	}, []string{msg.Sender})
 	/* End of kwak-indexer node implementation*/
 	/* *************************************************************************** */

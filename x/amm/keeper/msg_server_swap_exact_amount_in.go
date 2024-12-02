@@ -55,7 +55,7 @@ func (k msgServer) SwapExactAmountIn(goCtx context.Context, msg *types.MsgSwapEx
 		Recipient:         msg.Recipient,
 		SwapFee:           response.SwapFee.String(),
 		Discount:          response.Discount.String(),
-		AmountOut: indexerTypes.Token{
+		TokenOut: indexerTypes.Token{
 			Amount: response.TokenOutAmount.String(),
 			Denom:  msg.Routes[len(msg.Routes)-1].TokenOutDenom,
 		},
