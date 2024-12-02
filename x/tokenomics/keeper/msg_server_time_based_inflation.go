@@ -3,7 +3,15 @@ package keeper
 import (
 	"context"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
 	"cosmossdk.io/errors"
+	indexer "github.com/elys-network/elys/indexer"
+	indexerTokenomicsTypes "github.com/elys-network/elys/indexer/txs/tokenomics"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
@@ -32,6 +40,25 @@ func (k msgServer) CreateTimeBasedInflation(goCtx context.Context, msg *types.Ms
 	}
 
 	k.SetTimeBasedInflation(ctx, timeBasedInflation)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerTokenomicsTypes.MsgCreateTimeBasedInflation{
+		Authority:        msg.Authority,
+		StartBlockHeight: msg.StartBlockHeight,
+		EndBlockHeight:   msg.EndBlockHeight,
+		Description:      msg.Description,
+		Inflation: indexerTokenomicsTypes.InflationEntry{
+			LmRewards:         msg.Inflation.LmRewards,
+			IcsStakingRewards: msg.Inflation.IcsStakingRewards,
+			CommunityFund:     msg.Inflation.CommunityFund,
+			StrategicReserve:  msg.Inflation.StrategicReserve,
+			TeamTokensVested:  msg.Inflation.TeamTokensVested,
+		},
+	}, []string{msg.Authority})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgCreateTimeBasedInflationResponse{}, nil
 }
 
@@ -63,6 +90,24 @@ func (k msgServer) UpdateTimeBasedInflation(goCtx context.Context, msg *types.Ms
 
 	k.SetTimeBasedInflation(ctx, timeBasedInflation)
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerTokenomicsTypes.MsgUpdateTimeBasedInflation{
+		Authority:        msg.Authority,
+		StartBlockHeight: msg.StartBlockHeight,
+		EndBlockHeight:   msg.EndBlockHeight,
+		Description:      msg.Description,
+		Inflation: indexerTokenomicsTypes.InflationEntry{
+			LmRewards:         msg.Inflation.LmRewards,
+			IcsStakingRewards: msg.Inflation.IcsStakingRewards,
+			CommunityFund:     msg.Inflation.CommunityFund,
+			StrategicReserve:  msg.Inflation.StrategicReserve,
+			TeamTokensVested:  msg.Inflation.TeamTokensVested,
+		},
+	}, []string{msg.Authority})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgUpdateTimeBasedInflationResponse{}, nil
 }
 
@@ -85,5 +130,16 @@ func (k msgServer) DeleteTimeBasedInflation(goCtx context.Context, msg *types.Ms
 	}
 
 	k.RemoveTimeBasedInflation(ctx, msg.StartBlockHeight, msg.EndBlockHeight)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerTokenomicsTypes.MsgDeleteTimeBasedInflation{
+		Authority:        msg.Authority,
+		StartBlockHeight: msg.StartBlockHeight,
+		EndBlockHeight:   msg.EndBlockHeight,
+	}, []string{msg.Authority})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgDeleteTimeBasedInflationResponse{}, nil
 }

@@ -82,6 +82,18 @@ func (k msgServer) AddExternalRewardDenom(goCtx context.Context, msg *types.MsgA
 			sdk.NewAttribute(types.AttributeSupported, fmt.Sprintf("%t", msg.Supported)),
 		),
 	})
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerMasterchefTypes.MsgAddExternalRewardDenom{
+		Authority:   msg.Authority,
+		RewardDenom: msg.RewardDenom,
+		MinAmount:   msg.MinAmount.String(),
+		Supported:   msg.Supported,
+	}, []string{msg.Authority})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgAddExternalRewardDenomResponse{}, nil
 }
 
@@ -142,6 +154,21 @@ func (k msgServer) AddExternalIncentive(goCtx context.Context, msg *types.MsgAdd
 			sdk.NewAttribute(types.AttributeAmountPerBlock, fmt.Sprintf("%d", msg.AmountPerBlock)),
 		),
 	})
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerMasterchefTypes.MsgAddExternalIncentive{
+		Sender:         msg.Sender,
+		RewardDenom:    msg.RewardDenom,
+		PoolID:         msg.PoolId,
+		FromBlock:      msg.FromBlock,
+		ToBlock:        msg.ToBlock,
+		AmountPerBlock: msg.AmountPerBlock.String(),
+		TotalAmount:    amount.String(),
+	}, []string{msg.Sender})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgAddExternalIncentiveResponse{}, nil
 }
 
@@ -193,7 +220,7 @@ func (k Keeper) ClaimRewards(ctx sdk.Context, sender sdk.AccAddress, poolIds []u
 		ctx.BlockTime().UnixNano(),
 		sender.String(),
 		poolIDsStr,
-		"/elys-event/masterchef/claim-rewards",
+		indexerTypes.ElysEventTypes.Masterchef.ClaimRewards,
 	)
 
 	// Convert coins to indexer token type
@@ -214,7 +241,7 @@ func (k Keeper) ClaimRewards(ctx sdk.Context, sender sdk.AccAddress, poolIds []u
 
 	// Queue the event
 
-	indexer.QueueEvent(ctx, "/elys-event/masterchef/claim-rewards", indexerMasterchefTypes.ClaimRewardsEvent{
+	indexer.QueueEvent(ctx, indexerTypes.ElysEventTypes.Masterchef.ClaimRewards, indexerMasterchefTypes.ClaimRewardsEvent{
 		Sender:      sender.String(),
 		Recipient:   recipient.String(),
 		PoolIDs:     poolIDsUint,
@@ -272,6 +299,38 @@ func (k msgServer) UpdateParams(goCtx context.Context, msg *types.MsgUpdateParam
 
 	k.SetParams(ctx, msg.Params)
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	supportedRewardDenoms := make([]indexerMasterchefTypes.SupportedRewardDenom, len(msg.Params.SupportedRewardDenoms))
+	for i, denom := range msg.Params.SupportedRewardDenoms {
+		supportedRewardDenoms[i] = indexerMasterchefTypes.SupportedRewardDenom{
+			Denom:     denom.Denom,
+			MinAmount: denom.MinAmount.String(),
+		}
+	}
+
+	var lpIncentives *indexerMasterchefTypes.IncentiveInfo
+	if msg.Params.LpIncentives != nil {
+		lpIncentives = &indexerMasterchefTypes.IncentiveInfo{
+			EdenAmountPerYear: msg.Params.LpIncentives.EdenAmountPerYear.String(),
+			BlocksDistributed: msg.Params.LpIncentives.BlocksDistributed,
+		}
+	}
+
+	indexer.QueueTransaction(ctx, indexerMasterchefTypes.MsgUpdateParams{
+		Authority: msg.Authority,
+		Params: indexerMasterchefTypes.Params{
+			LpIncentives:            lpIncentives,
+			RewardPortionForLps:     msg.Params.RewardPortionForLps.String(),
+			RewardPortionForStakers: msg.Params.RewardPortionForStakers.String(),
+			MaxEdenRewardAprLps:     msg.Params.MaxEdenRewardAprLps.String(),
+			SupportedRewardDenoms:   supportedRewardDenoms,
+			ProtocolRevenueAddress:  msg.Params.ProtocolRevenueAddress,
+		},
+	}, []string{msg.Authority})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgUpdateParamsResponse{}, nil
 }
 
@@ -282,6 +341,23 @@ func (k msgServer) UpdatePoolMultipliers(goCtx context.Context, msg *types.MsgUp
 	}
 
 	k.Keeper.UpdatePoolMultipliers(ctx, msg.PoolMultipliers)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	poolMultipliers := make([]indexerMasterchefTypes.PoolMultiplier, len(msg.PoolMultipliers))
+	for i, multiplier := range msg.PoolMultipliers {
+		poolMultipliers[i] = indexerMasterchefTypes.PoolMultiplier{
+			PoolID:     multiplier.PoolId,
+			Multiplier: multiplier.Multiplier.String(),
+		}
+	}
+
+	indexer.QueueTransaction(ctx, indexerMasterchefTypes.MsgUpdatePoolMultipliers{
+		Authority:       msg.Authority,
+		PoolMultipliers: poolMultipliers,
+	}, []string{msg.Authority})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return &types.MsgUpdatePoolMultipliersResponse{}, nil
 }

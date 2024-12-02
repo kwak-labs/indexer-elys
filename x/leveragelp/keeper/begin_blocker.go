@@ -111,14 +111,14 @@ func (k Keeper) CheckAndLiquidateUnhealthyPosition(ctx sdk.Context, position *ty
 
 	/* *************************************************************************** */
 	/* Start of kwak-indexer node implementation*/
-	eventID := fmt.Sprintf("%d-%d-%s", ctx.BlockHeight(), position.Id, "/elys-event/leveragelp/liquidation")
+	eventID := fmt.Sprintf("%d-%d-%s-%s", ctx.BlockHeight(), position.Id, position.Address, indexerTypes.ElysEventTypes.Leveragelp.Liquidation)
 
 	initialValue := math.LegacyNewDecFromInt(position.Collateral.Amount)
 	finalValue := math.LegacyNewDecFromInt(repayAmount).Sub(math.LegacyNewDecFromInt(position.Liabilities))
 	profitLoss, profitLossPerc := calculateProfitLoss(initialValue, finalValue)
 
 	// Queue the liquidation event
-	indexer.QueueEvent(ctx, "/elys-event/leveragelp/liquidation", indexerPerpetualTypes.LiquidationEvent{
+	indexer.QueueEvent(ctx, indexerTypes.ElysEventTypes.Leveragelp.Liquidation, indexerPerpetualTypes.LiquidationEvent{
 		PositionID: position.Id,
 		Address:    position.Address,
 		Collateral: indexerTypes.Token{
@@ -181,14 +181,14 @@ func (k Keeper) CheckAndCloseAtStopLoss(ctx sdk.Context, position *types.Positio
 
 	/* *************************************************************************** */
 	/* Start of kwak-indexer node implementation*/
-	eventID := fmt.Sprintf("%d-%d-%s", ctx.BlockHeight(), position.Id, "/elys-event/leveragelp/stop-loss")
+	eventID := fmt.Sprintf("%d-%d-%s-%s", ctx.BlockHeight(), position.Id, position.Address, indexerTypes.ElysEventTypes.Leveragelp.StopLoss)
 
 	initialValue := math.LegacyNewDecFromInt(position.Collateral.Amount)
 	finalValue := math.LegacyNewDecFromInt(repayAmount).Sub(math.LegacyNewDecFromInt(position.Liabilities))
 	profitLoss, profitLossPerc := calculateProfitLoss(initialValue, finalValue)
 
 	// Queue the stop loss event
-	indexer.QueueEvent(ctx, "/elys-event/leveragelp/stop-loss", indexerPerpetualTypes.StopLossEvent{
+	indexer.QueueEvent(ctx, indexerTypes.ElysEventTypes.Leveragelp.StopLoss, indexerPerpetualTypes.StopLossEvent{
 		PositionID: position.Id,
 		Address:    position.Address,
 		Collateral: indexerTypes.Token{

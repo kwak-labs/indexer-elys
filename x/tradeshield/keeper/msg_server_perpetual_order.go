@@ -8,6 +8,7 @@ import (
 	/* Start of kwak-indexer node implementation*/
 	indexer "github.com/elys-network/elys/indexer"
 	indexerTradeshieldTypes "github.com/elys-network/elys/indexer/txs/tradeshield"
+	"github.com/elys-network/elys/indexer/txs/tradeshield/common"
 	indexerTypes "github.com/elys-network/elys/indexer/types"
 
 	/* End of kwak-indexer node implementation*/
@@ -107,7 +108,7 @@ func (k msgServer) CreatePerpetualOpenOrder(goCtx context.Context, msg *types.Ms
 	/* Start of kwak-indexer node implementation*/
 	indexer.QueueTransaction(ctx, indexerTradeshieldTypes.MsgCreatePerpetualOpenOrder{
 		OwnerAddress: msg.OwnerAddress,
-		TriggerPrice: indexerTradeshieldTypes.TriggerPrice{
+		TriggerPrice: common.TriggerPrice{
 			TradingAssetDenom: msg.TriggerPrice.TradingAssetDenom,
 			Rate:              msg.TriggerPrice.Rate.String(),
 		},
@@ -157,6 +158,20 @@ func (k msgServer) CreatePerpetualCloseOrder(goCtx context.Context, msg *types.M
 	// 	pendingPerpetualOrder,
 	// )
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	// indexer.QueueTransaction(ctx, indexerTradeshieldTypes.MsgCreatePerpetualCloseOrder{
+	// 	OwnerAddress: msg.OwnerAddress,
+	// 	TriggerPrice: indexerTradeshieldTypes.TriggerPrice{
+	// 		TradingAssetDenom: msg.TriggerPrice.TradingAssetDenom,
+	// 		Rate:             msg.TriggerPrice.Rate.String(),
+	// 	},
+	// 	PositionID: msg.PositionId,
+	// 	OrderID:    id,
+	// }, []string{msg.OwnerAddress})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	// return &types.MsgCreatePerpetualCloseOrderResponse{
 	// 	OrderId: id,
 	// }, nil
@@ -199,7 +214,7 @@ func (k msgServer) UpdatePerpetualOrder(goCtx context.Context, msg *types.MsgUpd
 	indexer.QueueTransaction(ctx, indexerTradeshieldTypes.MsgUpdatePerpetualOrder{
 		OwnerAddress: msg.OwnerAddress,
 		OrderID:      msg.OrderId,
-		TriggerPrice: indexerTradeshieldTypes.TriggerPrice{
+		TriggerPrice: common.TriggerPrice{
 			TradingAssetDenom: msg.TriggerPrice.TradingAssetDenom,
 			Rate:              msg.TriggerPrice.Rate.String(),
 		},

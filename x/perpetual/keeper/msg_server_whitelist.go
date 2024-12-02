@@ -3,6 +3,14 @@ package keeper
 import (
 	"context"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerPerpetualTypes "github.com/elys-network/elys/indexer/txs/perpetual"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
@@ -22,6 +30,15 @@ func (k msgServer) Whitelist(goCtx context.Context, msg *types.MsgWhitelist) (*t
 	}
 
 	k.Keeper.WhitelistAddress(ctx, accAddress)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerPerpetualTypes.MsgWhitelist{
+		Authority:          msg.Authority,
+		WhitelistedAddress: msg.WhitelistedAddress,
+	}, []string{msg.Authority, msg.WhitelistedAddress})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return &types.MsgWhitelistResponse{}, nil
 }

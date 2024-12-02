@@ -4,6 +4,14 @@ import (
 	"context"
 	"fmt"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerPerpetualTypes "github.com/elys-network/elys/indexer/txs/perpetual"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
@@ -37,5 +45,40 @@ func (k msgServer) UpdateParams(goCtx context.Context, msg *types.MsgUpdateParam
 			}
 		}
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	// Queue the params update transaction
+	indexer.QueueTransaction(ctx, indexerPerpetualTypes.MsgUpdateParams{
+		Authority: msg.Authority,
+		Params: indexerPerpetualTypes.Params{
+			LeverageMax:                                    msg.Params.LeverageMax.String(),
+			BorrowInterestRateMax:                          msg.Params.BorrowInterestRateMax.String(),
+			BorrowInterestRateMin:                          msg.Params.BorrowInterestRateMin.String(),
+			BorrowInterestRateIncrease:                     msg.Params.BorrowInterestRateIncrease.String(),
+			BorrowInterestRateDecrease:                     msg.Params.BorrowInterestRateDecrease.String(),
+			HealthGainFactor:                               msg.Params.HealthGainFactor.String(),
+			MaxOpenPositions:                               msg.Params.MaxOpenPositions,
+			PoolOpenThreshold:                              msg.Params.PoolOpenThreshold.String(),
+			ForceCloseFundPercentage:                       msg.Params.ForceCloseFundPercentage.String(),
+			ForceCloseFundAddress:                          msg.Params.ForceCloseFundAddress,
+			IncrementalBorrowInterestPaymentFundPercentage: msg.Params.IncrementalBorrowInterestPaymentFundPercentage.String(),
+			IncrementalBorrowInterestPaymentFundAddress:    msg.Params.IncrementalBorrowInterestPaymentFundAddress,
+			SafetyFactor:                                   msg.Params.SafetyFactor.String(),
+			IncrementalBorrowInterestPaymentEnabled:        msg.Params.IncrementalBorrowInterestPaymentEnabled,
+			WhitelistingEnabled:                            msg.Params.WhitelistingEnabled,
+			PerpetualSwapFee:                               msg.Params.PerpetualSwapFee.String(),
+			MaxLimitOrder:                                  msg.Params.MaxLimitOrder,
+			FixedFundingRate:                               msg.Params.FixedFundingRate.String(),
+			MinimumLongTakeProfitPriceRatio:                msg.Params.MinimumLongTakeProfitPriceRatio.String(),
+			MaximumLongTakeProfitPriceRatio:                msg.Params.MaximumLongTakeProfitPriceRatio.String(),
+			MaximumShortTakeProfitPriceRatio:               msg.Params.MaximumShortTakeProfitPriceRatio.String(),
+			EnableTakeProfitCustodyLiabilities:             msg.Params.EnableTakeProfitCustodyLiabilities,
+			WeightBreakingFeeFactor:                        msg.Params.WeightBreakingFeeFactor.String(),
+		},
+	}, []string{msg.Authority})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgUpdateParamsResponse{}, nil
 }

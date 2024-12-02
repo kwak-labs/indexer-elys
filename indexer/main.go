@@ -3,7 +3,6 @@ package indexer
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"sync"
@@ -99,28 +98,28 @@ func initDatabase() {
 	count := database.GetRecordCount()
 	fmt.Printf("\n=== Decoding %d records ===\n", count)
 
-	for i := uint64(1); i <= count; i++ {
-		record, err := database.GetRecordByIndex(i)
-		if err != nil {
-			fmt.Printf("Error getting record %d: %v\n", i, err)
-			continue
-		}
+	// for i := uint64(1); i <= count; i++ {
+	// 	record, err := database.GetRecordByIndex(i)
+	// 	if err != nil {
+	// 		fmt.Printf("Error getting record %d: %v\n", i, err)
+	// 		continue
+	// 	}
 
-		txType, data, err := ParseRecord(record)
-		if err != nil {
-			fmt.Printf("Error parsing record %d: %v\n", i, err)
-			continue
-		}
+	// 	txType, data, err := ParseRecord(record)
+	// 	if err != nil {
+	// 		fmt.Printf("Error parsing record %d: %v\n", i, err)
+	// 		continue
+	// 	}
 
-		// Convert to JSON and format like console.log
-		jsonBytes, err := json.MarshalIndent(data, "", "  ")
-		if err != nil {
-			fmt.Printf("Error marshaling data for record %d: %v\n", i, err)
-			continue
-		}
+	// 	// Convert to JSON and format like console.log
+	// 	jsonBytes, err := json.MarshalIndent(data, "", "  ")
+	// 	if err != nil {
+	// 		fmt.Printf("Error marshaling data for record %d: %v\n", i, err)
+	// 		continue
+	// 	}
 
-		fmt.Printf("\nRecord #%d - Type: %s\n%s\n", i, txType, string(jsonBytes))
-	}
+	// 	fmt.Printf("\nRecord #%d - Type: %s\n%s\n", i, txType, string(jsonBytes))
+	// }
 
 	fmt.Println("\n=== Finished decoding all records ===")
 
@@ -230,7 +229,7 @@ func processEventInternal(event eventItem) {
 
 	_, err := event.proc.Process(database, baseEvent)
 	if err != nil {
-		panic(fmt.Errorf("failed to process event: %v", err))
+		fmt.Printf("failed to process event: %v", err)
 	}
 }
 

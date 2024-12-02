@@ -3,6 +3,15 @@ package keeper
 import (
 	"context"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerCommitmentTypes "github.com/elys-network/elys/indexer/txs/commitments"
+	indexerTypes "github.com/elys-network/elys/indexer/types"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -13,8 +22,6 @@ import (
 // VestNow is not enabled at this stage
 var VestNowEnabled = false
 
-// VestNow provides functionality to get the token immediately but lower amount than original
-// e.g. user can burn 1000 ueden and get 800 uelys when the ratio is 80%
 func (k msgServer) VestNow(goCtx context.Context, msg *types.MsgVestNow) (*types.MsgVestNowResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
@@ -58,6 +65,21 @@ func (k msgServer) VestNow(goCtx context.Context, msg *types.MsgVestNow) (*types
 
 	// Update the commitments
 	k.SetCommitments(ctx, commitments)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerCommitmentTypes.MsgVestNow{
+		Creator: msg.Creator,
+		Amount:  msg.Amount.String(),
+		Denom:   msg.Denom,
+		VestAmount: indexerTypes.Token{
+			Amount: vestAmount.String(),
+			Denom:  vestingInfo.VestingDenom,
+		},
+		VestingDenom: vestingInfo.VestingDenom,
+	}, []string{msg.Creator})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	// Emit blockchain event
 	ctx.EventManager().EmitEvent(

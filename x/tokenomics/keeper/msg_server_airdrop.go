@@ -2,7 +2,16 @@ package keeper
 
 import (
 	"context"
+
 	"cosmossdk.io/math"
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerTokenomicsTypes "github.com/elys-network/elys/indexer/txs/tokenomics"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -33,6 +42,18 @@ func (k msgServer) CreateAirdrop(goCtx context.Context, msg *types.MsgCreateAird
 	}
 
 	k.SetAirdrop(ctx, airdrop)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerTokenomicsTypes.MsgCreateAirdrop{
+		Authority: msg.Authority,
+		Intent:    msg.Intent,
+		Amount:    msg.Amount,
+		Expiry:    msg.Expiry,
+	}, []string{msg.Authority})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgCreateAirdropResponse{}, nil
 }
 
@@ -62,6 +83,18 @@ func (k msgServer) UpdateAirdrop(goCtx context.Context, msg *types.MsgUpdateAird
 	}
 
 	k.SetAirdrop(ctx, airdrop)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerTokenomicsTypes.MsgUpdateAirdrop{
+		Authority: msg.Authority,
+		Intent:    msg.Intent,
+		Amount:    msg.Amount,
+		Expiry:    msg.Expiry,
+	}, []string{msg.Authority})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgUpdateAirdropResponse{}, nil
 }
 
@@ -84,6 +117,16 @@ func (k msgServer) DeleteAirdrop(goCtx context.Context, msg *types.MsgDeleteAird
 	}
 
 	k.RemoveAirdrop(ctx, msg.Intent)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerTokenomicsTypes.MsgDeleteAirdrop{
+		Authority: msg.Authority,
+		Intent:    msg.Intent,
+	}, []string{msg.Authority})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgDeleteAirdropResponse{}, nil
 }
 
@@ -112,5 +155,14 @@ func (k msgServer) ClaimAirdrop(goCtx context.Context, msg *types.MsgClaimAirdro
 	k.commitmentKeeper.SetCommitments(ctx, commitments)
 
 	k.RemoveAirdrop(ctx, msg.Sender)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerTokenomicsTypes.MsgClaimAirdrop{
+		Sender: msg.Sender,
+	}, []string{msg.Sender})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgClaimAirdropResponse{}, nil
 }

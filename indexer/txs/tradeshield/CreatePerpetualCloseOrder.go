@@ -7,13 +7,14 @@ import (
 	"github.com/elys-network/elys/indexer/types"
 )
 
-type MsgUpdatePerpetualOrder struct {
+type MsgCreatePerpetualCloseOrder struct {
 	OwnerAddress string              `json:"owner_address"`
-	OrderID      uint64              `json:"order_id"`
 	TriggerPrice common.TriggerPrice `json:"trigger_price"`
+	PositionID   uint64              `json:"position_id"`
+	OrderID      uint64              `json:"order_id"`
 }
 
-func (m MsgUpdatePerpetualOrder) Process(database types.DatabaseManager, transaction types.BaseTransaction) (types.Response, error) {
+func (m MsgCreatePerpetualCloseOrder) Process(database types.DatabaseManager, transaction types.BaseTransaction) (types.Response, error) {
 	mergedData := types.GenericTransaction{
 		BaseTransaction: transaction,
 		Data:            m,

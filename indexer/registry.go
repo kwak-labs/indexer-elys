@@ -16,6 +16,8 @@ import (
 	"github.com/elys-network/elys/indexer/txs/parameter"
 	"github.com/elys-network/elys/indexer/txs/perpetual"
 	"github.com/elys-network/elys/indexer/txs/stablestake"
+	"github.com/elys-network/elys/indexer/txs/tier"
+	"github.com/elys-network/elys/indexer/txs/tokenomics"
 	"github.com/elys-network/elys/indexer/txs/tradeshield"
 	"github.com/elys-network/elys/indexer/types"
 	indexerTypes "github.com/elys-network/elys/indexer/types"
@@ -33,6 +35,9 @@ func init() {
 	RegisterTxType("/elys.commitment.MsgClaimVesting", reflect.TypeOf(commitments.MsgClaimVesting{}))
 	RegisterTxType("/elys.commitment.MsgCommitClaimedRewards", reflect.TypeOf(commitments.MsgCommitClaimedRewards{}))
 	RegisterTxType("/elys.commitment.MsgUncommitTokens", reflect.TypeOf(commitments.MsgUncommitTokens{}))
+	RegisterTxType("/elys.commitment.MsgVest", reflect.TypeOf(commitments.MsgVest{}))
+	RegisterTxType("/elys.commitment.MsgVestNow", reflect.TypeOf(commitments.MsgVestNow{}))
+	RegisterTxType("/elys.commitment.MsgUpdateVestingInfo", reflect.TypeOf(commitments.MsgUpdateVestingInfo{}))
 
 	// AMM
 	RegisterTxType("/elys.amm.MsgCreatePool", reflect.TypeOf(amm.MsgCreatePool{}))
@@ -50,6 +55,10 @@ func init() {
 	RegisterTxType("/elys.perpetual.MsgClose", reflect.TypeOf(perpetual.MsgClose{}))
 	RegisterTxType("/elys.perpetual.MsgUpdateStopLoss", reflect.TypeOf(perpetual.MsgUpdateStopLoss{}))
 	RegisterTxType("/elys.perpetual.MsgClosePositions", reflect.TypeOf(perpetual.MsgClosePositions{}))
+	RegisterTxType("/elys.perpetual.MsgUpdateParams", reflect.TypeOf(perpetual.MsgUpdateParams{}))
+	RegisterTxType("/elys.perpetual.MsgWhitelist", reflect.TypeOf(perpetual.MsgWhitelist{}))
+	RegisterTxType("/elys.perpetual.MsgDewhitelist", reflect.TypeOf(perpetual.MsgDewhitelist{}))
+	RegisterTxType("/elys.perpetual.MsgUpdateTakeProfitPrice", reflect.TypeOf(perpetual.MsgUpdateTakeProfitPrice{}))
 
 	// LeverageLP
 	RegisterTxType("/elys.leveragelp.MsgOpen", reflect.TypeOf(leveragelp.MsgOpen{}))
@@ -58,6 +67,10 @@ func init() {
 	RegisterTxType("/elys.leveragelp.MsgClaimRewards", reflect.TypeOf(leveragelp.MsgClaimRewards{}))
 	RegisterTxType("/elys.leveragelp.MsgUpdateStopLoss", reflect.TypeOf(leveragelp.MsgUpdateStopLoss{}))
 	RegisterTxType("/elys.leveragelp.MsgAddPool", reflect.TypeOf(leveragelp.MsgAddPool{}))
+	RegisterTxType("/elys.leveragelp.MsgUpdateParams", reflect.TypeOf(leveragelp.MsgUpdateParams{}))
+	RegisterTxType("/elys.leveragelp.MsgWhitelist", reflect.TypeOf(leveragelp.MsgWhitelist{}))
+	RegisterTxType("/elys.leveragelp.MsgDewhitelist", reflect.TypeOf(leveragelp.MsgDewhitelist{}))
+	RegisterTxType("/elys.leveragelp.MsgRemovePool", reflect.TypeOf(leveragelp.MsgRemovePool{}))
 
 	// Oracle
 	RegisterTxType("/elys.oracle.MsgFeedPrice", reflect.TypeOf(oracle.MsgFeedPrice{}))
@@ -65,6 +78,10 @@ func init() {
 	RegisterTxType("/elys.oracle.MsgSetPriceFeeder", reflect.TypeOf(oracle.MsgSetPriceFeeder{}))
 	RegisterTxType("/elys.oracle.MsgDeletePriceFeeder", reflect.TypeOf(oracle.MsgDeletePriceFeeder{}))
 	RegisterTxType("/elys.oracle.MsgCreateAssetInfo", reflect.TypeOf(oracle.MsgCreateAssetInfo{}))
+	RegisterTxType("/elys.oracle.MsgRemoveAssetInfo", reflect.TypeOf(oracle.MsgRemoveAssetInfo{}))
+	RegisterTxType("/elys.oracle.MsgAddPriceFeeders", reflect.TypeOf(oracle.MsgAddPriceFeeders{}))
+	RegisterTxType("/elys.oracle.MsgRemovePriceFeeders", reflect.TypeOf(oracle.MsgRemovePriceFeeders{}))
+	RegisterTxType("/elys.oracle.MsgUpdateParams", reflect.TypeOf(oracle.MsgUpdateParams{}))
 
 	// Parameter
 	RegisterTxType("/elys.parameter.MsgUpdateMinCommission", reflect.TypeOf(parameter.MsgUpdateMinCommission{}))
@@ -87,6 +104,9 @@ func init() {
 	RegisterTxType("/elys.tradeshield.MsgUpdatePerpetualOrder", reflect.TypeOf(tradeshield.MsgUpdatePerpetualOrder{}))
 	RegisterTxType("/elys.tradeshield.MsgExecuteOrders", reflect.TypeOf(tradeshield.MsgExecuteOrders{}))
 	RegisterTxType("/elys.tradeshield.MsgUpdateParams", reflect.TypeOf(tradeshield.MsgUpdateParams{}))
+	RegisterTxType("/elys.tradeshield.MsgUpdateSpotOrder", reflect.TypeOf(tradeshield.MsgUpdateSpotOrder{}))
+	RegisterTxType("/elys.tradeshield.MsgCancelSpotOrder", reflect.TypeOf(tradeshield.MsgCancelSpotOrder{}))
+	RegisterTxType("/elys.tradeshield.MsgCreatePerpetualCloseOrder", reflect.TypeOf(tradeshield.MsgCreatePerpetualCloseOrder{}))
 
 	// Asset Profile
 	RegisterTxType("/elys.assetprofile.MsgAddEntry", reflect.TypeOf(assetprofile.MsgAddEntry{}))
@@ -95,8 +115,13 @@ func init() {
 
 	// Masterchef
 	RegisterTxType("/elys.masterchef.MsgClaimRewards", reflect.TypeOf(masterchef.MsgClaimRewards{}))
+	RegisterTxType("/elys.masterchef.MsgAddExternalRewardDenom", reflect.TypeOf(masterchef.MsgAddExternalRewardDenom{}))
+	RegisterTxType("/elys.masterchef.MsgAddExternalIncentive", reflect.TypeOf(masterchef.MsgAddExternalIncentive{}))
+	RegisterTxType("/elys.masterchef.MsgUpdateParams", reflect.TypeOf(masterchef.MsgUpdateParams{}))
+	RegisterTxType("/elys.masterchef.MsgUpdatePoolMultipliers", reflect.TypeOf(masterchef.MsgUpdatePoolMultipliers{}))
+	RegisterTxType("/elys.masterchef.MsgTogglePoolEdenRewards", reflect.TypeOf(masterchef.MsgTogglePoolEdenRewards{}))
 
-	// EStaking
+	// EStakingz
 	RegisterTxType("/elys.estaking.MsgUpdateParams", reflect.TypeOf(estaking.MsgUpdateParams{}))
 	RegisterTxType("/elys.estaking.MsgWithdrawAllRewards", reflect.TypeOf(estaking.MsgWithdrawAllRewards{}))
 	RegisterTxType("/elys.estaking.MsgWithdrawElysStakingRewards", reflect.TypeOf(estaking.MsgWithdrawElysStakingRewards{}))
@@ -104,6 +129,19 @@ func init() {
 
 	// Burner
 	RegisterTxType("/elys.burner.MsgUpdateParams", reflect.TypeOf(burner.MsgUpdateParams{}))
+
+	// Tier
+	RegisterTxType("/elys.tier.MsgSetPortfolio", reflect.TypeOf(tier.MsgSetPortfolio{}))
+
+	// Tokenomics
+	RegisterTxType("/elys.tokenomics.MsgCreateAirdrop", reflect.TypeOf(tokenomics.MsgCreateAirdrop{}))
+	RegisterTxType("/elys.tokenomics.MsgUpdateAirdrop", reflect.TypeOf(tokenomics.MsgUpdateAirdrop{}))
+	RegisterTxType("/elys.tokenomics.MsgDeleteAirdrop", reflect.TypeOf(tokenomics.MsgDeleteAirdrop{}))
+	RegisterTxType("/elys.tokenomics.MsgClaimAirdrop", reflect.TypeOf(tokenomics.MsgClaimAirdrop{}))
+	RegisterTxType("/elys.tokenomics.MsgUpdateGenesisInflation", reflect.TypeOf(tokenomics.MsgUpdateGenesisInflation{}))
+	RegisterTxType("/elys.tokenomics.MsgCreateTimeBasedInflation", reflect.TypeOf(tokenomics.MsgCreateTimeBasedInflation{}))
+	RegisterTxType("/elys.tokenomics.MsgUpdateTimeBasedInflation", reflect.TypeOf(tokenomics.MsgUpdateTimeBasedInflation{}))
+	RegisterTxType("/elys.tokenomics.MsgDeleteTimeBasedInflation", reflect.TypeOf(tokenomics.MsgDeleteTimeBasedInflation{}))
 
 	// Register Events
 	RegisterEventType("/elys-event/leveragelp/liquidation", reflect.TypeOf(leveragelp.LiquidationEvent{}))

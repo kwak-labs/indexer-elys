@@ -2,6 +2,15 @@ package keeper
 
 import (
 	"context"
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerLeveragelpTypes "github.com/elys-network/elys/indexer/txs/leveragelp"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
@@ -36,6 +45,15 @@ func (k msgServer) RemovePool(goCtx context.Context, msg *types.MsgRemovePool) (
 			return nil, err
 		}
 	}
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerLeveragelpTypes.MsgRemovePool{
+		Authority: msg.Authority,
+		PoolID:    msg.Id,
+	}, []string{msg.Authority})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
 
 	return &types.MsgRemovePoolResponse{}, nil
 }

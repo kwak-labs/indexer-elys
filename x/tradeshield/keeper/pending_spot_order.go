@@ -231,9 +231,9 @@ func (k Keeper) ExecuteStopLossOrder(ctx sdk.Context, order types.SpotOrder) (*a
 	/* *************************************************************************** */
 	/* Start of kwak-indexer node implementation*/
 
-	eventId := fmt.Sprintf("%d-%d-%d-%s", ctx.BlockHeight(), order.OrderId, order.Status, "/elys-event/leveragelp/stop-loss")
+	eventId := fmt.Sprintf("%d-%d-%d-%s-%s", ctx.BlockHeight(), order.OrderId, order.Status, order.OwnerAddress, indexerTypes.ElysEventTypes.Tradeshield.StopLoss)
 
-	indexer.QueueEvent(ctx, "/elys-event/tradeshield/stop-loss", indexerTradeshieldTypes.StopLossExecutionEvent{
+	indexer.QueueEvent(ctx, indexerTypes.ElysEventTypes.Tradeshield.StopLoss, indexerTradeshieldTypes.StopLossExecutionEvent{
 		BaseOrder: common.BaseOrder{
 			OrderID:      order.OrderId,
 			OwnerAddress: order.OwnerAddress,
@@ -247,16 +247,23 @@ func (k Keeper) ExecuteStopLossOrder(ctx sdk.Context, order types.SpotOrder) (*a
 				Denom:  order.OrderAmount.Denom,
 			},
 		},
-		SwapOutput: indexerTypes.Token{
-			Amount: res.Amount.Amount.String(),
-			Denom:  res.Amount.Denom,
-		},
-		MarketPrice: marketPrice.String(),
-		TargetDenom: order.OrderTargetDenom,
+		OrderType:        common.OrderType_SPOT,
+		OrderTargetDenom: order.OrderTargetDenom,
+		Status:           common.Status_EXECUTED,
 		Date: common.OrderDate{
 			Height:    uint64(ctx.BlockHeight()),
 			Timestamp: uint64(ctx.BlockTime().Unix()),
 		},
+		MarketPrice: marketPrice.String(),
+		SwapOutput: indexerTypes.Token{
+			Amount: res.Amount.Amount.String(),
+			Denom:  res.Amount.Denom,
+		},
+		TriggerPrice: common.TriggerPrice{},
+		SpotPrice:    res.SpotPrice.String(),
+		SwapFee:      res.SwapFee.String(),
+		Discount:     res.Discount.String(),
+		Recipient:    res.Recipient,
 	}, []string{order.OwnerAddress}, eventId)
 	/* End of kwak-indexer node implementation*/
 	/* *************************************************************************** */
@@ -304,10 +311,10 @@ func (k Keeper) ExecuteLimitSellOrder(ctx sdk.Context, order types.SpotOrder) (*
 
 	/* *************************************************************************** */
 	/* Start of kwak-indexer node implementation*/
-	eventId := fmt.Sprintf("%d-%d-%d-%s", ctx.BlockHeight(), order.OrderId, order.Status, "/elys-event/tradeshield/limit-sell")
+	eventId := fmt.Sprintf("%d-%d-%d-%s-%s", ctx.BlockHeight(), order.OrderId, order.Status, order.OwnerAddress, indexerTypes.ElysEventTypes.Tradeshield.LimitSell)
 
 	// Queue the limit sell order execution event
-	indexer.QueueEvent(ctx, "/elys-event/tradeshield/limit-sell", indexerTradeshieldTypes.StopLossExecutionEvent{
+	indexer.QueueEvent(ctx, indexerTypes.ElysEventTypes.Tradeshield.LimitSell, indexerTradeshieldTypes.LimitSellExecutionEvent{
 		BaseOrder: common.BaseOrder{
 			OrderID:      order.OrderId,
 			OwnerAddress: order.OwnerAddress,
@@ -321,16 +328,22 @@ func (k Keeper) ExecuteLimitSellOrder(ctx sdk.Context, order types.SpotOrder) (*
 				Denom:  order.OrderAmount.Denom,
 			},
 		},
-		SwapOutput: indexerTypes.Token{
-			Amount: res.Amount.Amount.String(),
-			Denom:  res.Amount.Denom,
-		},
-		MarketPrice: marketPrice.String(),
-		TargetDenom: order.OrderTargetDenom,
+		OrderType:        common.OrderType_SPOT,
+		OrderTargetDenom: order.OrderTargetDenom,
+		Status:           common.Status_EXECUTED,
 		Date: common.OrderDate{
 			Height:    uint64(ctx.BlockHeight()),
 			Timestamp: uint64(ctx.BlockTime().Unix()),
 		},
+		MarketPrice: marketPrice.String(),
+		SwapOutput: indexerTypes.Token{
+			Amount: res.Amount.Amount.String(),
+			Denom:  res.Amount.Denom,
+		},
+		SpotPrice: res.SpotPrice.String(),
+		SwapFee:   res.SwapFee.String(),
+		Discount:  res.Discount.String(),
+		Recipient: res.Recipient,
 	}, []string{order.OwnerAddress}, eventId)
 	/* End of kwak-indexer node implementation*/
 	/* *************************************************************************** */
@@ -378,9 +391,9 @@ func (k Keeper) ExecuteLimitBuyOrder(ctx sdk.Context, order types.SpotOrder) (*a
 
 	/* *************************************************************************** */
 	/* Start of kwak-indexer node implementation*/
-	eventId := fmt.Sprintf("%d-%d-%d-%s", ctx.BlockHeight(), order.OrderId, order.Status, "/elys-event/tradeshield/limit-buy")
+	eventId := fmt.Sprintf("%d-%d-%d-%s-%s", ctx.BlockHeight(), order.OrderId, order.Status, order.OwnerAddress, indexerTypes.ElysEventTypes.Tradeshield.LimitBuy)
 
-	indexer.QueueEvent(ctx, "/elys-event/tradeshield/limit-buy", indexerTradeshieldTypes.LimitOrderExecutionEvent{
+	indexer.QueueEvent(ctx, indexerTypes.ElysEventTypes.Tradeshield.LimitBuy, indexerTradeshieldTypes.LimitOrderExecutionEvent{
 		BaseOrder: common.BaseOrder{
 			OrderID:      order.OrderId,
 			OwnerAddress: order.OwnerAddress,
@@ -394,16 +407,22 @@ func (k Keeper) ExecuteLimitBuyOrder(ctx sdk.Context, order types.SpotOrder) (*a
 				Denom:  order.OrderAmount.Denom,
 			},
 		},
-		SwapOutput: indexerTypes.Token{
-			Amount: res.Amount.Amount.String(),
-			Denom:  res.Amount.Denom,
-		},
-		MarketPrice:      marketPrice.String(),
+		OrderType:        common.OrderType_SPOT,
 		OrderTargetDenom: order.OrderTargetDenom,
+		Status:           common.Status_EXECUTED,
 		Date: common.OrderDate{
 			Height:    uint64(ctx.BlockHeight()),
 			Timestamp: uint64(ctx.BlockTime().Unix()),
 		},
+		MarketPrice: marketPrice.String(),
+		SwapOutput: indexerTypes.Token{
+			Amount: res.Amount.Amount.String(),
+			Denom:  res.Amount.Denom,
+		},
+		SpotPrice: res.SpotPrice.String(),
+		SwapFee:   res.SwapFee.String(),
+		Discount:  res.Discount.String(),
+		Recipient: res.Recipient,
 	}, []string{order.OwnerAddress}, eventId)
 	/* End of kwak-indexer node implementation*/
 	/* *************************************************************************** */
@@ -431,9 +450,9 @@ func (k Keeper) ExecuteMarketBuyOrder(ctx sdk.Context, order types.SpotOrder) (*
 
 	/* *************************************************************************** */
 	/* Start of kwak-indexer node implementation*/
-	eventId := fmt.Sprintf("%d-%d-%d-%s", ctx.BlockHeight(), order.OrderId, order.Status, "/elys-event/tradeshield/market-buy")
+	eventId := fmt.Sprintf("%d-%d-%d-%s-%s", ctx.BlockHeight(), order.OrderId, order.Status, order.OwnerAddress, indexerTypes.ElysEventTypes.Tradeshield.MarketBuy)
 
-	indexer.QueueEvent(ctx, "/elys-event/tradeshield/market-buy", indexerTradeshieldTypes.MarketOrderExecutionEvent{
+	indexer.QueueEvent(ctx, indexerTypes.ElysEventTypes.Tradeshield.MarketBuy, indexerTradeshieldTypes.MarketOrderExecutionEvent{
 		BaseOrder: common.BaseOrder{
 			OrderID:      order.OrderId,
 			OwnerAddress: order.OwnerAddress,
@@ -447,15 +466,22 @@ func (k Keeper) ExecuteMarketBuyOrder(ctx sdk.Context, order types.SpotOrder) (*
 				Denom:  order.OrderAmount.Denom,
 			},
 		},
-		SwapOutput: indexerTypes.Token{
-			Amount: res.Amount.Amount.String(),
-			Denom:  res.Amount.Denom,
-		},
-		TargetDenom: order.OrderTargetDenom,
+		OrderType:        common.OrderType_SPOT,
+		OrderTargetDenom: order.OrderTargetDenom,
+		Status:           common.Status_EXECUTED,
 		Date: common.OrderDate{
 			Height:    uint64(ctx.BlockHeight()),
 			Timestamp: uint64(ctx.BlockTime().Unix()),
 		},
+		MarketPrice: "",
+		SwapOutput: indexerTypes.Token{
+			Amount: res.Amount.Amount.String(),
+			Denom:  res.Amount.Denom,
+		},
+		SpotPrice: res.SpotPrice.String(),
+		SwapFee:   res.SwapFee.String(),
+		Discount:  res.Discount.String(),
+		Recipient: res.Recipient,
 	}, []string{order.OwnerAddress}, eventId)
 	/* End of kwak-indexer node implementation*/
 	/* *************************************************************************** */

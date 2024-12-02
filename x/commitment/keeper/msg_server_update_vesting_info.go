@@ -4,6 +4,14 @@ import (
 	"context"
 	"fmt"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerCommitmentTypes "github.com/elys-network/elys/indexer/txs/commitments"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -45,5 +53,19 @@ func (k msgServer) UpdateVestingInfo(goCtx context.Context, msg *types.MsgUpdate
 
 	// store params
 	k.SetParams(ctx, params)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerCommitmentTypes.MsgUpdateVestingInfo{
+		Authority:      msg.Authority,
+		BaseDenom:      msg.BaseDenom,
+		VestingDenom:   msg.VestingDenom,
+		NumBlocks:      msg.NumBlocks,
+		VestNowFactor:  msg.VestNowFactor,
+		NumMaxVestings: msg.NumMaxVestings,
+	}, []string{msg.Authority})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgUpdateVestingInfoResponse{}, nil
 }

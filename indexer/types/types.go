@@ -74,3 +74,53 @@ func (r GenericRecord) IsTransaction() bool {
 func (r GenericRecord) IsEvent() bool {
 	return r.Event != nil
 }
+
+type ElysEvent struct {
+	Leveragelp  LeveragelpEvent
+	Masterchef  MasterchefEvent
+	Perpetual   PerpetualEvent
+	Tradeshield TradeshieldEvent
+}
+
+type LeveragelpEvent struct {
+	Liquidation string
+	StopLoss    string
+}
+
+type MasterchefEvent struct {
+	ClaimRewards string
+}
+
+type PerpetualEvent struct {
+	Liquidation string
+	StopLoss    string
+	TakeProfit  string
+}
+
+type TradeshieldEvent struct {
+	StopLoss  string
+	LimitSell string
+	LimitBuy  string
+	MarketBuy string
+}
+
+var ElysEventTypes = ElysEvent{
+	Leveragelp: LeveragelpEvent{
+		Liquidation: "/elys-event/leveragelp/liquidation",
+		StopLoss:    "/elys-event/leveragelp/stop-loss",
+	},
+	Masterchef: MasterchefEvent{
+		ClaimRewards: "/elys-event/masterchef/claim-rewards",
+	},
+	Perpetual: PerpetualEvent{
+		Liquidation: "/elys-event/perpetual/liquidation",
+		StopLoss:    "/elys-event/perpetual/stop-loss",
+		TakeProfit:  "/elys-event/perpetual/take-profit",
+	},
+	Tradeshield: TradeshieldEvent{
+		StopLoss:  "/elys-event/tradeshield/stop-loss",
+		LimitSell: "/elys-event/tradeshield/limit-sell",
+		LimitBuy:  "/elys-event/tradeshield/limit-buy",
+		MarketBuy: "/elys-event/tradeshield/market-buy",
+	},
+}

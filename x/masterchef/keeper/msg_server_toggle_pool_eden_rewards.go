@@ -3,6 +3,14 @@ package keeper
 import (
 	"context"
 
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer "github.com/elys-network/elys/indexer"
+	indexerMasterchefTypes "github.com/elys-network/elys/indexer/txs/masterchef"
+
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
@@ -23,5 +31,16 @@ func (k msgServer) TogglePoolEdenRewards(goCtx context.Context, msg *types.MsgTo
 
 	pool.EnableEdenRewards = msg.Enable
 	k.SetPoolInfo(ctx, pool)
+
+	/* *************************************************************************** */
+	/* Start of kwak-indexer node implementation*/
+	indexer.QueueTransaction(ctx, indexerMasterchefTypes.MsgTogglePoolEdenRewards{
+		Authority: msg.Authority,
+		PoolID:    msg.PoolId,
+		Enable:    msg.Enable,
+	}, []string{msg.Authority})
+	/* End of kwak-indexer node implementation*/
+	/* *************************************************************************** */
+
 	return &types.MsgTogglePoolEdenRewardsResponse{}, nil
 }

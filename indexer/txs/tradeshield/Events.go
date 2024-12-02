@@ -11,13 +11,17 @@ import (
 type ExecutionEvent struct {
 	common.BaseOrder
 	OrderType        common.OrderType     `json:"order_type"`
-	OrderTargetDenom string               `json:"order_target_denom,omitempty"`
+	OrderTargetDenom string               `json:"order_target_denom"`
 	Status           common.OrderStatus   `json:"status"`
-	Date             common.OrderDate     `json:"date,omitempty"`
-	MarketPrice      string               `json:"market_price,omitempty"`
-	TriggerPrice     *common.TriggerPrice `json:"trigger_price,omitempty"` // For stop-loss or perpetual
-	SwapOutput       *types.Token         `json:"swap_output,omitempty"`   // For limit or spot
-	ReceivedAmount   *types.Token         `json:"received_amount,omitempty"`
+	Date             common.OrderDate     `json:"date"`
+	MarketPrice      string               `json:"market_price"`
+	TriggerPrice     *common.TriggerPrice `json:"trigger_price,omitempty"`
+	SwapOutput       *types.Token         `json:"swap_output"`
+	ReceivedAmount   *types.Token         `json:"received_amount"`
+	SpotPrice        string               `json:"spot_price"`
+	SwapFee          string               `json:"swap_fee"`
+	Discount         string               `json:"discount"`
+	Recipient        string               `json:"recipient"`
 }
 
 func (e ExecutionEvent) Process(database types.DatabaseManager, event types.BaseEvent) (types.Response, error) {
@@ -37,9 +41,16 @@ func (e ExecutionEvent) Process(database types.DatabaseManager, event types.Base
 // LimitSellExecutionEvent represents the event for a limit sell execution
 type LimitSellExecutionEvent struct {
 	common.BaseOrder
+	OrderType        common.OrderType   `json:"order_type"`
 	OrderTargetDenom string             `json:"order_target_denom"`
+	Status           common.OrderStatus `json:"status"`
+	Date             common.OrderDate   `json:"date"`
 	MarketPrice      string             `json:"market_price"`
-	ExecutionStatus  common.OrderStatus `json:"execution_status"`
+	SwapOutput       types.Token        `json:"swap_output"`
+	SpotPrice        string             `json:"spot_price"`
+	SwapFee          string             `json:"swap_fee"`
+	Discount         string             `json:"discount"`
+	Recipient        string             `json:"recipient"`
 }
 
 func (e LimitSellExecutionEvent) Process(database types.DatabaseManager, event types.BaseEvent) (types.Response, error) {
@@ -59,9 +70,17 @@ func (e LimitSellExecutionEvent) Process(database types.DatabaseManager, event t
 // SpotOrderExecution represents the event for a spot order execution
 type SpotOrderExecution struct {
 	common.BaseOrder
-	OrderType      common.OrderType `json:"order_type"`
-	Date           common.OrderDate `json:"date"`
-	ReceivedAmount types.Token      `json:"received_amount"`
+	OrderType        common.OrderType   `json:"order_type"`
+	OrderTargetDenom string             `json:"order_target_denom"`
+	Status           common.OrderStatus `json:"status"`
+	Date             common.OrderDate   `json:"date"`
+	MarketPrice      string             `json:"market_price"`
+	SwapOutput       types.Token        `json:"swap_output"`
+	ReceivedAmount   types.Token        `json:"received_amount"`
+	SpotPrice        string             `json:"spot_price"`
+	SwapFee          string             `json:"swap_fee"`
+	Discount         string             `json:"discount"`
+	Recipient        string             `json:"recipient"`
 }
 
 func (e SpotOrderExecution) Process(database types.DatabaseManager, event types.BaseEvent) (types.Response, error) {
@@ -81,12 +100,16 @@ func (e SpotOrderExecution) Process(database types.DatabaseManager, event types.
 // LimitOrderExecutionEvent represents the event for a limit buy execution
 type LimitOrderExecutionEvent struct {
 	common.BaseOrder
-	OrderType        common.SpotOrder   `json:"order_type"`
+	OrderType        common.OrderType   `json:"order_type"`
 	OrderTargetDenom string             `json:"order_target_denom"`
 	Status           common.OrderStatus `json:"status"`
 	Date             common.OrderDate   `json:"date"`
-	SwapOutput       types.Token        `json:"swap_output"`
 	MarketPrice      string             `json:"market_price"`
+	SwapOutput       types.Token        `json:"swap_output"`
+	SpotPrice        string             `json:"spot_price"`
+	SwapFee          string             `json:"swap_fee"`
+	Discount         string             `json:"discount"`
+	Recipient        string             `json:"recipient"`
 }
 
 func (e LimitOrderExecutionEvent) Process(database types.DatabaseManager, event types.BaseEvent) (types.Response, error) {
@@ -106,10 +129,17 @@ func (e LimitOrderExecutionEvent) Process(database types.DatabaseManager, event 
 // StopLossExecutionEvent represents the event for a stop-loss execution
 type StopLossExecutionEvent struct {
 	common.BaseOrder
-	SwapOutput  types.Token      `json:"swap_output"`
-	MarketPrice string           `json:"market_price"`
-	TargetDenom string           `json:"target_denom"`
-	Date        common.OrderDate `json:"date"`
+	OrderType        common.OrderType    `json:"order_type"`
+	OrderTargetDenom string              `json:"order_target_denom"`
+	Status           common.OrderStatus  `json:"status"`
+	Date             common.OrderDate    `json:"date"`
+	MarketPrice      string              `json:"market_price"`
+	SwapOutput       types.Token         `json:"swap_output"`
+	TriggerPrice     common.TriggerPrice `json:"trigger_price"`
+	SpotPrice        string              `json:"spot_price"`
+	SwapFee          string              `json:"swap_fee"`
+	Discount         string              `json:"discount"`
+	Recipient        string              `json:"recipient"`
 }
 
 func (e StopLossExecutionEvent) Process(database types.DatabaseManager, event types.BaseEvent) (types.Response, error) {
@@ -128,10 +158,16 @@ func (e StopLossExecutionEvent) Process(database types.DatabaseManager, event ty
 
 type MarketOrderExecutionEvent struct {
 	common.BaseOrder
-	OrderType   common.OrderType `json:"order_type"`
-	Date        common.OrderDate `json:"date"`
-	TargetDenom string           `json:"target_denom"`
-	SwapOutput  types.Token      `json:"swap_output"`
+	OrderType        common.OrderType   `json:"order_type"`
+	OrderTargetDenom string             `json:"order_target_denom"`
+	Status           common.OrderStatus `json:"status"`
+	Date             common.OrderDate   `json:"date"`
+	MarketPrice      string             `json:"market_price"`
+	SwapOutput       types.Token        `json:"swap_output"`
+	SpotPrice        string             `json:"spot_price"`
+	SwapFee          string             `json:"swap_fee"`
+	Discount         string             `json:"discount"`
+	Recipient        string             `json:"recipient"`
 }
 
 func (e MarketOrderExecutionEvent) Process(database types.DatabaseManager, event types.BaseEvent) (types.Response, error) {
